@@ -1,8 +1,12 @@
 package weka.classifiers.rules;
 
 import org.rulelearn.approximations.Union;
+import org.rulelearn.data.InformationTable;
+import org.rulelearn.data.arff.ArffReader;
 import org.rulelearn.rules.ApproximatedSetProvider;
 import org.rulelearn.rules.UnionProvider;
+import sun.awt.windows.WPrinterJob;
+import tools.ArffConverter;
 import weka.classifiers.AbstractClassifier;
 import weka.core.*;
 
@@ -32,7 +36,15 @@ public class DRSA extends AbstractClassifier implements
 
     @Override
     public void buildClassifier(Instances data) throws Exception {
-        System.out.println(data);
+
+        InformationTable informationTable;
+        ArffConverter arffConverter = new ArffConverter();
+
+        informationTable = arffConverter.convert(data.toString());
+
+        for (int i = 0; i < informationTable.getNumberOfAttributes(); i++) {
+            System.out.println(informationTable.getAttribute(i).serialize());
+        }
     }
 
     @Override
@@ -41,7 +53,10 @@ public class DRSA extends AbstractClassifier implements
     }
 
     public static void main(String[] args){
-        args = new String[] {"-t", "C:\\main\\MachineLearning\\kNN\\winequality-red.csv"};
+        args = new String[] {
+                "-t", "C:\\Users\\AScriet\\Desktop\\test.arff",
+                "-T", "C:\\Users\\AScriet\\Desktop\\test.arff"
+        };
         runClassifier(new DRSA(), args);
     }
 
