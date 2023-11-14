@@ -1,0 +1,20 @@
+
+PackageName=drsa
+
+Version=1
+
+Date=2023-11-12
+
+Title=drsa
+
+Author=p
+
+Maintainer=p
+
+License=GPL 3.0
+
+Description=drsa
+
+Category=Classification
+
+Depends=weka (>=3.8.1)

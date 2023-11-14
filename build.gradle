@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    implementation('nz.ac.waikato.cms.weka:weka-stable:3.8.6')
+    //compile("com.github.ruleLearn:rulelearn:0.24.2")
+    implementation('com.github.ruleLearn:rulelearn:0.25.0-rc.17')
+}
+
+test {
+    useJUnitPlatform()
+}
