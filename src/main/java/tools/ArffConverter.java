@@ -43,7 +43,7 @@ public class ArffConverter {
             while (scanner.hasNext()){
                 line = scanner.nextLine().trim();
 
-                UnknownSimpleField unknownSimpleField = null;
+                UnknownSimpleField unknownSimpleField = UnknownSimpleFieldMV2.getInstance();
                 AttributePreferenceType attributePreferenceType = AttributePreferenceType.NONE;
 
                 if (line.startsWith("@relation")) {
@@ -54,8 +54,13 @@ public class ArffConverter {
                 }
                 if (line.startsWith("@attribute")) {
                     tokens = line.split("\\s+");
-                    int nameEnd = tokens[1].indexOf("[");
-                    attributeName = tokens[1].substring(0, nameEnd);
+                    if (tokens[1].contains("[")){
+                        int nameEnd = tokens[1].indexOf("[");
+                        attributeName = tokens[1].substring(0, nameEnd);
+                    }
+                    else{
+                        attributeName = tokens[1];
+                    }
                     //System.out.println(tokens[2]);
                     if (tokens[1].contains("[g]")){
                         attributePreferenceType = AttributePreferenceType.GAIN;
@@ -77,7 +82,7 @@ public class ArffConverter {
                         attributeDomain = line.substring(openingBraceIndex + 1, closingBraceIndex).trim();
                         //System.out.println(attributeDomain);
                         elements = attributeDomain.split(dataSeparator);
-                        unquoteElements(elements);
+                        //unquoteElements(elements);
                         //System.out.println(elements[0]);
                         try {
                             elementList = new ElementList(elements);
@@ -92,6 +97,9 @@ public class ArffConverter {
                             valueType = RealFieldFactory.getInstance().create(RealField.DEFAULT_VALUE, attributePreferenceType);
                             minimalAttributes.add(new MinimalAttribute(attributeName, valueType, unknownSimpleField, attributePreferenceType));
                         }
+                        //else if (tokens[2].trim().equals("numeric")){
+                            //valueType = EvaluationFieldFactory()
+                        //}
 
                     }
                 }
@@ -111,6 +119,7 @@ public class ArffConverter {
                 );
                 attrIndex ++;
             }
+            //System.out.println(attrIndex);
 
             rlAttributes[attrIndex] = new EvaluationAttribute(
                     minimalAttributes.get(attrIndex).name,
@@ -126,7 +135,8 @@ public class ArffConverter {
                 line = scanner.nextLine().trim();
                 if (line.length() > 0){
                     elements = line.split(dataSeparator);
-                    unquoteElements(elements);
+                    //unquoteElements(elements);
+                    System.out.println(elements.length);
                 }
 
                 informationTableBuilder.addObject(elements);
