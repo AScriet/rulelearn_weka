@@ -1,4 +1,4 @@
-package tools;
+package org.data;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.rulelearn.data.*;

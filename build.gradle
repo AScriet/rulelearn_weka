@@ -23,6 +23,7 @@ test {
 }
 
 task fatJar(type: Jar) {
+    destinationDir = file('C:\\main\\IN\\WekaExt')
     group 'buitd'
     manifest {
         attributes 'Main-Class': 'weka.classifier.rules.DRSA'

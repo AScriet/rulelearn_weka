@@ -1,4 +1,4 @@
-package tools;
+package org.data;
 
 import org.rulelearn.core.InvalidTypeException;
 import org.rulelearn.data.*;
@@ -64,7 +64,10 @@ public class ArffInstance2Table {
             if (i < attributeNum - 1) {
                 attributeType = AttributeType.CONDITION;
             }
-
+            if (attributeName.contains("[")) {
+                int nameEnd = attributeName.indexOf("[");
+                attributeName = attributeName.substring(0, nameEnd);
+            }
             switch (attribute.type()) {
                 case Attribute.NUMERIC:
                     isInteger = attributeName.contains("[i]");
@@ -89,10 +92,6 @@ public class ArffInstance2Table {
                         ));
                     }
 
-                    if (attributeName.contains("[")) {
-                        int nameEnd = attributeName.indexOf("[");
-                        attributeName = attributeName.substring(0, nameEnd);
-                    }
                     break;
                 case Attribute.NOMINAL:
                     nominalValuesEnumeration = attribute.enumerateValues();
