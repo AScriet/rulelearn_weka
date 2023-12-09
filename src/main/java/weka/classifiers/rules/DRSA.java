@@ -1,14 +1,15 @@
 package weka.classifiers.rules;
 
 import org.rulelearn.approximations.*;
+import org.rulelearn.data.EvaluationAttribute;
 import org.rulelearn.data.InformationTable;
 import org.rulelearn.data.InformationTableWithDecisionDistributions;
 import org.rulelearn.rules.Rule;
 import org.rulelearn.rules.RuleSetWithCharacteristics;
 import org.rulelearn.measures.dominance.EpsilonConsistencyMeasure;
 import org.rulelearn.rules.*;
-import org.data.ArffConverter;
 import org.data.ArffInstance2Table;
+import org.rulelearn.types.*;
 import weka.classifiers.AbstractClassifier;
 import weka.core.*;
 import org.rulelearn.approximations.VCDominanceBasedRoughSetCalculator;
@@ -23,6 +24,7 @@ public class DRSA extends AbstractClassifier implements
     protected int instanceNum = 0;
     protected int batchSize = 0;
     private ArrayList<String> decisions;
+    protected transient EvaluationAttribute[] rlAttributes;
     protected transient RuleSetWithCharacteristics resultSetModel = null;
     protected transient InformationTableWithDecisionDistributions informationTableWithDecisionDistributions = null;
     public String globalInfo(){
@@ -75,8 +77,9 @@ public class DRSA extends AbstractClassifier implements
 
         InformationTable informationTable;
         ArffInstance2Table arffC = new ArffInstance2Table();
-
         informationTable = arffC.convert(data);
+
+        rlAttributes = arffC.getAttributes(data);
 
         batchSize = data.size();
         /* enum class values */
@@ -87,7 +90,6 @@ public class DRSA extends AbstractClassifier implements
         }
 
         informationTableWithDecisionDistributions = new InformationTableWithDecisionDistributions(informationTable);
-
         RuleSetWithComputableCharacteristics rules;
         //UnionsWithSingleLimitingDecision unions = new UnionsWithSingleLimitingDecision(
         //        informationTableWithDecisionDistributions,
@@ -147,14 +149,51 @@ public class DRSA extends AbstractClassifier implements
         resultSetModel = resultSet;
 
     }
+    public boolean cover(Rule rule, Instance instance){
 
+        int conditionsSize = rule.getConditions().length;
+
+        EvaluationField[] fields;
+        int numRuleLearnAttributes = rlAttributes.length;
+        fields = new EvaluationField[numRuleLearnAttributes];
+        double value;
+
+        for (int i = 0; i < numRuleLearnAttributes; i++){
+            if (instance.isMissing(i)){
+                fields[i] = rlAttributes[i].getMissingValueType();
+            }
+            else {
+                value = instance.value(i);
+                if (rlAttributes[i].getValueType() instanceof IntegerField){
+                    fields[i] = IntegerFieldFactory.getInstance().create((int)value, rlAttributes[i].getPreferenceType());
+                }
+                else if (rlAttributes[i].getValueType() instanceof  RealField) {
+                    fields[i] = RealFieldFactory.getInstance().create((int)value, rlAttributes[i].getPreferenceType());
+                } else if (rlAttributes[i].getValueType() instanceof EnumerationField) {
+                    fields[i] = EnumerationFieldFactory.getInstance().create(((EnumerationField)rlAttributes[i].getValueType()).getElementList(), (int)value, rlAttributes[i].getPreferenceType());
+                }
+            }
+        }
+
+        for (int i = 0; i < conditionsSize; i++) {
+
+            int index = rule.getConditions()[i].getAttributeWithContext().getAttributeIndex();
+
+            for (int j = 0; j < instance.numAttributes() - 1; j++) {
+                        if (!rule.getConditions()[i].satisfiedBy(fields[index]))
+                            return false;
+                    }
+            }
+        return true;
+    }
     @Override
     public double classifyInstance(Instance instance) throws Exception {
         String ruleStr;
         double covers = 1;
         for (int i = 0; i < resultSetModel.size(); i++) {
             Rule rule = resultSetModel.getRule(i);
-            if(rule.covers(instanceNum, informationTableWithDecisionDistributions)) {
+            //if(rule.covers(instanceNum, informationTableWithDecisionDistributions)) {
+            if(cover(rule, instance)) {
                 ruleStr = rule.getDecision().toString();
                 for (int j = 0; j < instance.numClasses(); j++){
                     if (ruleStr.contains(decisions.get(j))){

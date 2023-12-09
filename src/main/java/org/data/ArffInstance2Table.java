@@ -10,18 +10,15 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.Objects;
+
 
 public class ArffInstance2Table {
-
-    public InformationTable convert(Instances instances){
-
+    public EvaluationAttribute[] getAttributes(Instances instances){
         Attribute attribute;
         String attributeName;
         boolean isActive = false;
         boolean isInteger = false;
         int numInstances = instances.numInstances();
-        //InformationTable informationTable = null;
         AttributeType attributeType = AttributeType.CONDITION;
         Enumeration<Object> nominalValuesEnumeration;
         List<String> nominalValues;
@@ -34,8 +31,6 @@ public class ArffInstance2Table {
 
 
         List<Integer> ruleLearnAttributeIndex2WekaAttributeIndex = new ArrayList<Integer>();
-
-        //org.rulelearn.data.Attribute[] rLAttributesList = new EvaluationAttribute[attributeNum];
 
         for (int i = 0; i < attributeNum; i++) {
 
@@ -64,6 +59,7 @@ public class ArffInstance2Table {
             if (i < attributeNum - 1) {
                 attributeType = AttributeType.CONDITION;
             }
+
             if (attributeName.contains("[")) {
                 int nameEnd = attributeName.indexOf("[");
                 attributeName = attributeName.substring(0, nameEnd);
@@ -114,16 +110,119 @@ public class ArffInstance2Table {
                         return null; //this should not happen
                     }
                     break;
-                /**case Attribute.STRING:
-                    IdentificationField TextIdentificationField;
-                    rLAttributesList[i] = (new IdentificationAttribute(
-                            attributeName,
-                            false,
-                            )); */
                 default:
+                    throw new InvalidTypeException("Unsupported WEKA's attribute type.");
+
+            }
+            ruleLearnAttributeIndex2WekaAttributeIndex.add(i);
+        }
+
+        EvaluationAttribute[] rLAttributes = rLAttributesList.toArray(new EvaluationAttribute[0]);
+        int numRuleLearnAttributes = rLAttributes.length;
+
+        return rLAttributes;
+    }
+    public InformationTable convert(Instances instances){
+
+        Attribute attribute;
+        String attributeName;
+        boolean isActive = false;
+        boolean isInteger = false;
+        int numInstances = instances.numInstances();
+        AttributeType attributeType = AttributeType.CONDITION;
+        Enumeration<Object> nominalValuesEnumeration;
+        List<String> nominalValues;
+        UnknownSimpleField missingValueType;
+        AttributePreferenceType attributePreferenceType;
+        List<EvaluationAttribute> rLAttributesList = new ArrayList<EvaluationAttribute>();
+        int attributeNum = instances.numAttributes();
 
 
-                    //throw new InvalidTypeException("Unsupported WEKA's attribute type.");
+
+
+        List<Integer> ruleLearnAttributeIndex2WekaAttributeIndex = new ArrayList<Integer>();
+
+        for (int i = 0; i < attributeNum; i++) {
+
+            attributeType = AttributeType.DECISION;
+            missingValueType = UnknownSimpleFieldMV2.getInstance();
+            isActive = false;
+
+            attribute = instances.attribute(i);
+            attributeName = attribute.name();
+
+            if (attributeName.contains("[mv1.5]")) {
+                missingValueType = UnknownSimpleFieldMV15.getInstance();
+            } else {
+                missingValueType = UnknownSimpleFieldMV2.getInstance();
+            }
+            if (attributeName.contains("[g]")) {
+                attributePreferenceType = AttributePreferenceType.GAIN;
+            } else if (attributeName.contains("[c]")) {
+                attributePreferenceType = AttributePreferenceType.COST;
+            } else {
+                attributePreferenceType = AttributePreferenceType.NONE;
+            }
+
+            isActive = attributeName.contains("[a]");
+
+            if (i < attributeNum - 1) {
+                attributeType = AttributeType.CONDITION;
+            }
+
+            if (attributeName.contains("[")) {
+                int nameEnd = attributeName.indexOf("[");
+                attributeName = attributeName.substring(0, nameEnd);
+            }
+            switch (attribute.type()) {
+                case Attribute.NUMERIC:
+                    isInteger = attributeName.contains("[i]");
+
+                    if (isInteger) {
+                        rLAttributesList.add(new EvaluationAttribute(
+                                attributeName,
+                                isActive,
+                                attributeType,
+                                IntegerFieldFactory.getInstance().create(0, attributePreferenceType),
+                                missingValueType,
+                                attributePreferenceType
+                        ));
+                    } else {
+                        rLAttributesList.add(new EvaluationAttribute(
+                                attributeName,
+                                isActive,
+                                attributeType,
+                                RealFieldFactory.getInstance().create(0.0, attributePreferenceType),
+                                missingValueType,
+                                attributePreferenceType
+                        ));
+                    }
+
+                    break;
+                case Attribute.NOMINAL:
+                    nominalValuesEnumeration = attribute.enumerateValues();
+                    nominalValues = new ArrayList<>();
+
+                    while (nominalValuesEnumeration.hasMoreElements()) {
+                        nominalValues.add((String) nominalValuesEnumeration.nextElement());
+                    }
+
+                    try {
+                        rLAttributesList.add(new EvaluationAttribute(
+                                attributeName,
+                                isActive,
+                                attributeType,
+                                EnumerationFieldFactory.getInstance().create(new ElementList(nominalValues.toArray(new String[0])), 0, attributePreferenceType),
+                                missingValueType,
+                                attributePreferenceType));
+                    } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                        return null; //this should not happen
+                    }
+                    break;
+
+                default:
+                    throw new InvalidTypeException("Unsupported WEKA's attribute type.");
 
             }
             ruleLearnAttributeIndex2WekaAttributeIndex.add(i);
@@ -157,17 +256,7 @@ public class ArffInstance2Table {
             listOfFields.add(fields);
 
         }
-      /**
-        InformationTableBuilder informationTableBuilder = new InformationTableBuilder(rLAttributesList, ",", new String[] {"?"});
 
-
-
-        for (int i = 0; i < instances.numInstances(); i++){
-            informationTableBuilder.addObject(instances.instance(i).toString());
-        }
-
-        informationTableBuilder.clearVolatileCaches();
-        InformationTable informationTable = informationTableBuilder.build(); */
         return new InformationTable(rLAttributes, listOfFields);
     }
 }
