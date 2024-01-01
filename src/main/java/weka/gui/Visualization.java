@@ -39,7 +39,6 @@ public class Visualization extends Frame {
         ClassUnions.add(UnionsHeader, BorderLayout.CENTER);
         ClassUnions.add(UnionsList, BorderLayout.AFTER_LAST_LINE);
 
-
         int UnionsCount = UnionsAtLeast.getCount() + UnionsAtMost.getCount();
         UnionsHeader.setText("NUMBER OF UNIONS " + UnionsCount);
 

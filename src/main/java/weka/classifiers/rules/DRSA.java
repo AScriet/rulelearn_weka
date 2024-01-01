@@ -149,7 +149,6 @@ public class DRSA extends AbstractClassifier implements
 
         resultSet.setLearningInformationTableHash(unions.getInformationTable().getHash());
 
-
         for (int i = 0; i < unionAtLeastProvider.getCount(); i++) {
             unionsS +=(unionAtLeastProvider.getApproximatedSet(i) + " "
                     + unionAtLeastProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
