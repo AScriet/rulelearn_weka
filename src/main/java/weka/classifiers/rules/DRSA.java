@@ -1,6 +1,7 @@
 package weka.classifiers.rules;
 
 import org.rulelearn.approximations.*;
+import org.rulelearn.data.Decision;
 import org.rulelearn.data.EvaluationAttribute;
 import org.rulelearn.data.InformationTable;
 import org.rulelearn.data.InformationTableWithDecisionDistributions;
@@ -13,6 +14,7 @@ import org.rulelearn.types.*;
 import weka.classifiers.AbstractClassifier;
 import weka.core.*;
 import org.rulelearn.approximations.VCDominanceBasedRoughSetCalculator;
+import weka.gui.Visualization;
 
 import java.util.*;
 
@@ -22,18 +24,23 @@ public class DRSA extends AbstractClassifier implements
     String unionsS = "";
     private double Th = 0.0;
     protected int instanceNum = 0;
-    protected int batchSize = 0;
-    private ArrayList<String> decisions;
+    private transient Decision[] decisions;
     protected transient EvaluationAttribute[] rlAttributes;
     protected transient RuleSetWithCharacteristics resultSetModel = null;
     protected transient InformationTableWithDecisionDistributions informationTableWithDecisionDistributions = null;
+
     public String globalInfo(){
-        return "test info about DRSA" + getTechnicalInformation().toString();
+
+        return "test info about DRSA"
+                + getTechnicalInformation().toString();
     }
 
     @Override
     public TechnicalInformation getTechnicalInformation() {
-        return null;
+        TechnicalInformation info;
+        info = new TechnicalInformation(TechnicalInformation.Type.ARTICLE);
+        info.setValue(TechnicalInformation.Field.AUTHOR, "X");
+        return info;
     }
 
     @Override
@@ -58,6 +65,8 @@ public class DRSA extends AbstractClassifier implements
             Th = 0.0;
         }
         super.setOptions(options);
+
+        Utils.checkForRemainingOptions(options);
     }
 
     @Override
@@ -81,13 +90,9 @@ public class DRSA extends AbstractClassifier implements
 
         rlAttributes = arffC.getAttributes(data);
 
-        batchSize = data.size();
         /* enum class values */
         int n = data.numClasses();
-        decisions = new ArrayList<String>();
-        for (int i = 0; i < n; i++) {
-            decisions.add(data.classAttribute().value(i));
-        }
+
 
         informationTableWithDecisionDistributions = new InformationTableWithDecisionDistributions(informationTable);
         RuleSetWithComputableCharacteristics rules;
@@ -97,6 +102,17 @@ public class DRSA extends AbstractClassifier implements
 
         UnionsWithSingleLimitingDecision unions;
 
+        decisions = new Decision[n];
+        decisions = informationTableWithDecisionDistributions.getOrderedUniqueFullyDeterminedDecisions();
+
+        if (data.classAttribute().toString().contains("[c]")){
+            for (int i = 0; i < n / 2; i++){
+                Decision temp = decisions[i];
+                decisions[i] = decisions[n - i - 1];
+                decisions[decisions.length - i - 1] = temp;
+            }
+
+        }
 
 
         unions = new UnionsWithSingleLimitingDecision(
@@ -134,7 +150,6 @@ public class DRSA extends AbstractClassifier implements
         resultSet.setLearningInformationTableHash(unions.getInformationTable().getHash());
 
 
-
         for (int i = 0; i < unionAtLeastProvider.getCount(); i++) {
             unionsS +=(unionAtLeastProvider.getApproximatedSet(i) + " "
                     + unionAtLeastProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
@@ -145,8 +160,11 @@ public class DRSA extends AbstractClassifier implements
                     + unionAtMostProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
                     + unionAtMostProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
         }
-
+        ;
         resultSetModel = resultSet;
+
+        Visualization frame = new Visualization();
+        frame.run(resultSetModel.serialize("\n"), unionAtLeastProvider, unionAtMostProvider, informationTable);
 
     }
     public boolean cover(Rule rule, Instance instance){
@@ -188,25 +206,20 @@ public class DRSA extends AbstractClassifier implements
     }
     @Override
     public double classifyInstance(Instance instance) throws Exception {
-        String ruleStr;
-        double covers = 1;
+        double covers = 0;
         for (int i = 0; i < resultSetModel.size(); i++) {
             Rule rule = resultSetModel.getRule(i);
             //if(rule.covers(instanceNum, informationTableWithDecisionDistributions)) {
             if(cover(rule, instance)) {
-                ruleStr = rule.getDecision().toString();
                 for (int j = 0; j < instance.numClasses(); j++){
-                    if (ruleStr.contains(decisions.get(j))){
+                    //System.out.println(rule.getDecision().toString() + " " + decisions[j].serialize());
+                    if (rule.getDecision().toString().contains(decisions[j].serialize().replace("8:", ""))){
                         covers = j;
                     }
                 }
                 break;
             }
-
         }
-        instanceNum += 1;
-        if (instanceNum == batchSize)
-            instanceNum = 0;
 
         return covers;
     }
