@@ -25,7 +25,7 @@ public class Visualization extends Frame {
 
         /** Elements */
         JTextArea RulesSting = new JTextArea();
-        JLabel UnionsHeader = new JLabel();
+        JLabel UnionsHeaderLabel = new JLabel();
         DefaultListModel<String> UnionsModel = new DefaultListModel<>();
         JList<String> UnionsList = new JList<>(UnionsModel);
 
@@ -35,30 +35,30 @@ public class Visualization extends Frame {
 
         Rules.add(RulesSting);
         RulesSting.append(ruleSet);
-
-        ClassUnions.add(UnionsHeader, BorderLayout.CENTER);
-        ClassUnions.add(UnionsList, BorderLayout.AFTER_LAST_LINE);
+        ClassUnions.setLayout(new BoxLayout(ClassUnions, BoxLayout.Y_AXIS));
+        ClassUnions.add(UnionsHeaderLabel);
+        ClassUnions.add(UnionsList);
 
         int UnionsCount = UnionsAtLeast.getCount() + UnionsAtMost.getCount();
-        UnionsHeader.setText("NUMBER OF UNIONS " + UnionsCount);
+        UnionsHeaderLabel.setText("NUMBER OF UNIONS: " + UnionsCount);
+
+        for (int i = 0; i < UnionsAtMost.getCount(); ++i) {
+            UnionsModel.addElement("<html><br>"
+                    +  "<p>" + UnionsAtMost.getApproximatedSet(i) + "</p> <ul>"
+                    + "<li>Accuracy of approximation: " + UnionsAtMost.getApproximatedSet(i).getAccuracyOfApproximation() + "</li>"
+                    + "<li>Quality of approximation: " + UnionsAtMost.getApproximatedSet(i).getQualityOfApproximation() + "</li>"
+                    + "</ul></html>"
+            );
+        }
 
         for (int i = 0; i < UnionsAtLeast.getCount(); ++i) {
             UnionsModel.addElement("<html><br>"
                     +  "<p>" + UnionsAtLeast.getApproximatedSet(i) + "</p> <ul>"
                     + "<li>Accuracy of approximation: " + UnionsAtLeast.getApproximatedSet(i).getAccuracyOfApproximation() + "</li>"
                     + "<li>Quality of approximation: " + UnionsAtLeast.getApproximatedSet(i).getQualityOfApproximation() + "</li>"
-                    + "</ul><br><br></html>"
+                    + "</ul></html>"
             );
         }
-        for (int i = 0; i < UnionsAtMost.getCount(); ++i) {
-            UnionsModel.addElement("<html><br>"
-                    +  "<p>" + UnionsAtMost.getApproximatedSet(i) + "</p> <ul>"
-                    + "<li>Accuracy of approximation: " + UnionsAtMost.getApproximatedSet(i).getAccuracyOfApproximation() + "</li>"
-                    + "<li>Quality of approximation: " + UnionsAtMost.getApproximatedSet(i).getQualityOfApproximation() + "</li>"
-                    + "</ul><br><br></html>"
-            );
-        }
-
 
         MouseListener mouseListener = new MouseAdapter() {
             public void mouseClicked(MouseEvent mouseEvent) {
@@ -90,6 +90,17 @@ public class Visualization extends Frame {
         JPanel ObjectsPanel = new JPanel();
         JPanel AttributesPanel = new JPanel();
 
+        JLabel UnionCharacteristicLabel = new JLabel();
+        JLabel ObjectsLabel = new JLabel();
+        JLabel AttributesLabel = new JLabel();
+        JLabel ValuesLabel = new JLabel();
+
+        JTextArea UnionTextArea = new JTextArea();
+        UnionTextArea.setText(union.getApproximatedSet(index)
+                + "\nAccuracy of approximation " + union.getApproximatedSet(index).getAccuracyOfApproximation()
+                +  "\nQuality of approximation " + union.getApproximatedSet(index).getQualityOfApproximation()
+        );
+
         DefaultListModel<String> OptionsModel = new DefaultListModel<>();
         JList<String> OptionsList = new JList<>(OptionsModel);
 
@@ -110,27 +121,36 @@ public class Visualization extends Frame {
                     if (OptionIndex >= 0) {
                         System.out.println("Double-clicked on: " + OptionIndex);
                         ObjectsModel.clear();
+                        ObjectsLabel.setVisible(true);
+                        ObjectsList.setVisible(true);
                         int[] objects = new int[]{0};
                         switch (OptionIndex){
                             case 0:
+                                ObjectsLabel.setText("OBJECTS");
                                 objects = union.getApproximatedSet(index).getObjects().toIntArray();
                                 break;
                             case 1:
+                                ObjectsLabel.setText("LOWER APPROXIMATION");
                                 objects = union.getApproximatedSet(index).getLowerApproximation().toIntArray();
                                 break;
                             case 2:
+                                ObjectsLabel.setText("UPPER APPROXIMATION");
                                 objects = union.getApproximatedSet(index).getUpperApproximation().toIntArray();
                                 break;
                             case 3:
+                                ObjectsLabel.setText("BOUNDARY");
                                 objects = union.getApproximatedSet(index).getBoundary().toIntArray();
                                 break;
                             case 4:
+                                ObjectsLabel.setText("POSITIVE REGION");
                                 objects = union.getApproximatedSet(index).getPositiveRegion().toIntArray();
                                 break;
                             case 5:
+                                ObjectsLabel.setText("NEGATIVE REGION");
                                 objects = union.getApproximatedSet(index).getNegativeRegion().toIntArray();
                                 break;
                             case 6:
+                                ObjectsLabel.setText("BOUNDARY REGION");
                                 objects = union.getApproximatedSet(index).getBoundaryRegion().toIntArray();
                                 break;
                             default:
@@ -149,13 +169,16 @@ public class Visualization extends Frame {
             public void mouseClicked(MouseEvent mouseEvent) {
                 JList theList = (JList) mouseEvent.getSource();
                 if (mouseEvent.getClickCount() == 1){
+                    AttributesList.setVisible(true);
+                    AttributesLabel.setVisible(true);
                     int ObjIndex = theList.locationToIndex(mouseEvent.getPoint());
                     if (ObjIndex >= 0) {
                         System.out.println("Clicked on: " + ObjIndex);
                         System.out.println(ObjectsModel.get(ObjIndex));
                         AttributesModel.clear();
                         for (int i = 0; i < informationTable.getNumberOfAttributes(); ++i){
-                            AttributesModel.addElement(informationTable.getAttribute(i).getName() + " " + informationTable.getField(ObjIndex, i));
+                            AttributesModel.addElement(informationTable.getAttribute(i).getName() + " "
+                                    + informationTable.getField(Integer.valueOf(ObjectsModel.get(ObjIndex)) - 1, i));
                         }
                     }
                 }
@@ -169,12 +192,30 @@ public class Visualization extends Frame {
         OptionsModel.addElement("Negative region " + union.getApproximatedSet(index).getNegativeRegion().size());
         OptionsModel.addElement("Boundary region " + union.getApproximatedSet(index).getBoundaryRegion().size());
         OptionsList.addMouseListener(mouseListener);
+        UnionCharacteristicLabel.setText("UNION'S CHARACTERISTICS");
+        UnionCharacteristicLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        UnionPanel.setLayout(new BoxLayout(UnionPanel, BoxLayout.Y_AXIS));
+        UnionPanel.add(UnionCharacteristicLabel, BorderLayout.EAST);
         UnionPanel.add(OptionsList);
 
+        ObjectsList.setVisible(false);
+        ObjectsLabel.setVisible(false);
+        AttributesLabel.setVisible(false);
+        AttributesList.setVisible(false);
 
+
+        ObjectsPanel.setLayout(new BoxLayout(ObjectsPanel, BoxLayout.Y_AXIS));
+        ObjectsPanel.add(ObjectsLabel);
         ObjectsPanel.add(ScrollObjectsPane);
-
         ObjectsList.addMouseListener(attributesListener);
+
+        AttributesPanel.setLayout(new BoxLayout(AttributesPanel, BoxLayout.Y_AXIS));
+        AttributesLabel.setText("Attribute Name");
+        ValuesLabel.setText("Name     Value");
+        ValuesLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        AttributesPanel.add(ValuesLabel);
+        AttributesPanel.add(UnionTextArea);
+        AttributesPanel.add(AttributesLabel);
         AttributesPanel.add(ScrollAttributesPane);
 
         JDialog dialog = new JDialog(frame, "Union Details", true);

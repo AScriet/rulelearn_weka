@@ -23,6 +23,7 @@ public class DRSA extends AbstractClassifier implements
 
     String unionsS = "";
     private double Th = 0.0;
+    private Boolean AdvancedVisualization = false;
     protected int instanceNum = 0;
     private transient Decision[] decisions;
     protected transient EvaluationAttribute[] rlAttributes;
@@ -51,6 +52,11 @@ public class DRSA extends AbstractClassifier implements
                 "ST",
                 0,
                 "-ST <consistency threshold>"));
+        newVector.addElement(new Option(
+                "\tShow advanced visualization\n \t(Default: off)\n",
+                "-advanced-visualization",
+                0,
+                "-advanced-visualization"));
 
         newVector.addAll(Collections.list(super.listOptions()));
         return newVector.elements();
@@ -64,6 +70,9 @@ public class DRSA extends AbstractClassifier implements
         } else {
             Th = 0.0;
         }
+        AdvancedVisualization = Utils.getFlag("advanced-visualization", options);
+
+
         super.setOptions(options);
 
         Utils.checkForRemainingOptions(options);
@@ -161,10 +170,10 @@ public class DRSA extends AbstractClassifier implements
         }
         ;
         resultSetModel = resultSet;
-
-        Visualization frame = new Visualization();
-        frame.run(resultSetModel.serialize("\n"), unionAtLeastProvider, unionAtMostProvider, informationTable);
-
+        if (AdvancedVisualization) {
+            Visualization frame = new Visualization();
+            frame.run(resultSetModel.serialize("\n"), unionAtLeastProvider, unionAtMostProvider, informationTable);
+        }
     }
     public boolean cover(Rule rule, Instance instance){
 
@@ -238,13 +247,6 @@ public class DRSA extends AbstractClassifier implements
     }
 
     public static void main(String[] args){
-       /**
-        args = new String[] {
-                "-t", "C:\\Users\\AScriet\\Desktop\\data1.arff",
-                "-T", "C:\\Users\\AScriet\\Desktop\\data1.arff",
-                "-ST", "0.5"
-        };
-        */
         runClassifier(new DRSA(), args);
     }
 
