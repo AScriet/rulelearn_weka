@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.ints.IntSortedSet;
 import org.rulelearn.data.InformationTable;
 import org.rulelearn.dominance.DominanceConeCalculator;
 import org.rulelearn.rules.ApproximatedSetProvider;
+import org.rulelearn.rules.RuleSetWithCharacteristics;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -16,7 +17,11 @@ import java.awt.event.MouseListener;
 
 public class Visualization extends Frame {
 
-    public static void run(String ruleSet, ApproximatedSetProvider UnionsAtMost, ApproximatedSetProvider UnionsAtLeast, InformationTable informationTable) {
+    public static void run(
+            ApproximatedSetProvider UnionsAtMost,
+            ApproximatedSetProvider UnionsAtLeast,
+            InformationTable informationTable,
+            RuleSetWithCharacteristics ruleSet) {
         JFrame frame = new JFrame("Visualization");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(800, 500);
@@ -28,9 +33,9 @@ public class Visualization extends Frame {
         JPanel RulesPanel = new JPanel();
 
         /** Elements */
-        JTextArea RulesTextArea = new JTextArea();
         JLabel UnionsHeaderLabel = new JLabel();
         JLabel DominanceConesLabel = new JLabel();
+        JLabel RulesLabel = new JLabel();
 
         DefaultListModel<String> UnionsModel = new DefaultListModel<>();
         JList<String> UnionsList = new JList<>(UnionsModel);
@@ -38,6 +43,10 @@ public class Visualization extends Frame {
         DefaultListModel<String> DominanceConesModel = new DefaultListModel<>();
         JList<String> DominanceConesList = new JList<>(DominanceConesModel);
         JScrollPane ScrollDominanceConesPane = new JScrollPane(DominanceConesList);
+
+        DefaultListModel<String> RulesListModel = new DefaultListModel<>();
+        JList<String> RulesList = new JList<>(RulesListModel);
+        JScrollPane ScrollRulesPane = new JScrollPane(RulesList);
 
         tabbedPane.addTab("Dominance Cones", DominanceConesPanel);
         tabbedPane.addTab("Class Unions", ClassUnionsPanel);
@@ -88,9 +97,6 @@ public class Visualization extends Frame {
         };
         DominanceConesList.addMouseListener(DominanceConeListener);
 
-        RulesPanel.add(RulesTextArea);
-        RulesTextArea.append(ruleSet);
-
         ClassUnionsPanel.setLayout(new BoxLayout(ClassUnionsPanel, BoxLayout.Y_AXIS));
         ClassUnionsPanel.add(UnionsHeaderLabel);
         ClassUnionsPanel.add(UnionsList);
@@ -133,8 +139,41 @@ public class Visualization extends Frame {
                 }
             }
         };
-
         UnionsList.addMouseListener(mouseListener);
+
+        RulesPanel.setLayout(new BoxLayout(RulesPanel, BoxLayout.Y_AXIS));
+        RulesPanel.add(RulesLabel);
+        RulesPanel.add(ScrollRulesPane);
+
+        RulesLabel.setText("NUMBER OF RULES: " + ruleSet.size());
+        String RuleString;
+        for (int i = 0; i < ruleSet.size(); ++i) {
+            RuleString = "<html>" + ruleSet.getRule(i).getDecision();
+
+            for (int j = 0; j < ruleSet.getRule(i).getConditions().length; ++j){
+                RuleString += "<br>" + ruleSet.getRule(i).getConditions()[j];
+            }
+            RuleString += "<br>Support: " + ruleSet.getRuleCharacteristics(i).getSupport()
+                    + " | Strength: " + ruleSet.getRuleCharacteristics(i).getStrength()
+                    + " | Coverage Factor: " + ruleSet.getRuleCharacteristics(i).getCoverageFactor()
+                    + " | Confidence: " + ruleSet.getRuleCharacteristics(i).getConfidence()
+                    + " | Epsilon measure: " + ruleSet.getRuleCharacteristics(i).getEpsilon();
+
+            RulesListModel.addElement(RuleString);
+        }
+        MouseListener RulesListener = new MouseAdapter() {
+            public void mouseClicked(MouseEvent mouseEvent) {
+                JList theList = (JList) mouseEvent.getSource();
+                if (mouseEvent.getClickCount() == 1) {
+                    int index = theList.locationToIndex(mouseEvent.getPoint());
+                    if (index >= 0) {
+                        System.out.println("Double-clicked on: " + index);
+                        RulesDialog(frame, informationTable, ruleSet, index);
+                    }
+                }
+            }
+        };
+        RulesList.addMouseListener(RulesListener);
 
         frame.getContentPane().add(tabbedPane);
         frame.setVisible(true);
@@ -166,11 +205,10 @@ public class Visualization extends Frame {
 
         DefaultListModel<String> ObjectsModel = new DefaultListModel<>();
         JList<String> ObjectsList = new JList<>(ObjectsModel);
+        JScrollPane ScrollObjectsPane = new JScrollPane(ObjectsList);
 
         DefaultListModel<String> AttributesModel = new DefaultListModel<>();
         JList<String> AttributesList = new JList<>(AttributesModel);
-
-        JScrollPane ScrollObjectsPane = new JScrollPane(ObjectsList);
         JScrollPane ScrollAttributesPane = new JScrollPane(AttributesList);
 
         MouseListener mouseListener = new MouseAdapter() {
@@ -429,12 +467,114 @@ public class Visualization extends Frame {
         };
         ObjectsList.addMouseListener(ObjectListener);
 
+
         JDialog dialog = new JDialog(frame, "Dominance Cones", true);
         dialog.setSize(750,450);
         dialog.setLocationRelativeTo(frame);
         dialog.add(DominanceConesPanel, BorderLayout.WEST);
         dialog.add(DomimanceConeObjectsPanel, BorderLayout.CENTER);
         dialog.add(RelationsPanel, BorderLayout.EAST);
+        dialog.setVisible(true);
+    }
+
+    public static void RulesDialog(
+            JFrame frame,
+            InformationTable informationTable,
+            RuleSetWithCharacteristics ruleSet,
+            int index){
+
+        JPanel CharacteristicPanel = new JPanel();
+        JPanel CoveredObjectsPanel = new JPanel();
+        JPanel ObjectPanel = new JPanel();
+
+        CharacteristicPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        CoveredObjectsPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        ObjectPanel.setBorder(new EmptyBorder(10, 10, 10,10));
+
+        CharacteristicPanel.setLayout(new BoxLayout(CharacteristicPanel, BoxLayout.Y_AXIS));
+        CoveredObjectsPanel.setLayout(new BoxLayout(CoveredObjectsPanel, BoxLayout.Y_AXIS));
+        ObjectPanel.setLayout(new BoxLayout(ObjectPanel, BoxLayout.Y_AXIS));
+
+        JLabel CharacteristicLabel = new JLabel("CHARACTERISTIC         VALUE");
+        JLabel CoveredObjectsLabel = new JLabel("COVERED OBJECTS");
+        JLabel ObjectNameLabel = new JLabel("ATTRIBUTE NAME");
+
+
+        DefaultListModel<String> CharacteristicListModel = new DefaultListModel<>();
+        JList<String> CharacteristicList = new JList<>(CharacteristicListModel);
+
+        DefaultListModel<String> ObjectsModel = new DefaultListModel<>();
+        JList<String> ObjectsList = new JList<>(ObjectsModel);
+        JScrollPane ScrollObjectsPane = new JScrollPane(ObjectsList);
+
+        DefaultListModel<String> AttributesModel = new DefaultListModel<>();
+        JList<String> AttributesList = new JList<>(AttributesModel);
+        JScrollPane ScrollAttributesPane = new JScrollPane(AttributesList);
+
+
+        CharacteristicLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        CharacteristicList.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        CharacteristicListModel.addElement(String.format("%-40s", "Support") + ruleSet.getRuleCharacteristics(index).getSupport());
+        CharacteristicListModel.addElement(String.format("%-40s", "Strength") + ruleSet.getRuleCharacteristics(index).getStrength());
+        CharacteristicListModel.addElement(String.format("%-40s", "Confidence") + ruleSet.getRuleCharacteristics(index).getConfidence());
+        CharacteristicListModel.addElement(String.format("%-40s", "Coverage factor") + ruleSet.getRuleCharacteristics(index).getCoverageFactor());
+        CharacteristicListModel.addElement(String.format("%-40s", "Coverage") + ruleSet.getRuleCharacteristics(index).getCoverage());
+        CharacteristicListModel.addElement(String.format("%-40s", "Negative coverage") + ruleSet.getRuleCharacteristics(index).getNegativeCoverage());
+        CharacteristicListModel.addElement(String.format("%-40s", "Epsilon measure") + ruleSet.getRuleCharacteristics(index).getEpsilon());
+        CharacteristicListModel.addElement(String.format("%-40s", "Epsilon prime measure") + ruleSet.getRuleCharacteristics(index).getEpsilonPrime());
+        CharacteristicListModel.addElement(String.format("%-40s", "F-confirmation measure") + ruleSet.getRuleCharacteristics(index).getFConfirmation());
+        CharacteristicListModel.addElement(String.format("%-40s", "A-confirmation measure") + ruleSet.getRuleCharacteristics(index).getAConfirmation());
+        CharacteristicListModel.addElement(String.format("%-40s", "Z-confirmation measure") + ruleSet.getRuleCharacteristics(index).getZConfirmation());
+        CharacteristicListModel.addElement(String.format("%-40s", "L-confirmation measure") + ruleSet.getRuleCharacteristics(index).getLConfirmation());
+        CharacteristicListModel.addElement(String.format("%-40s", "c1-confirmation measure") + ruleSet.getRuleCharacteristics(index).getC1Confirmation());
+        CharacteristicListModel.addElement(String.format("%-40s", "S-confirmation measure") + ruleSet.getRuleCharacteristics(index).getSConfirmation());
+        CharacteristicListModel.addElement(String.format("%-40s", "Length") + ruleSet.getRule(index).getConditions().length);
+
+        CharacteristicPanel.add(CharacteristicLabel);
+        CharacteristicPanel.add(CharacteristicList);
+
+        for (int i = 0; i < informationTable.getNumberOfObjects(); ++i){
+            if( ruleSet.getRule(index).covers(i, informationTable)){
+                ObjectsModel.addElement("Object " + (i + 1));
+            }
+
+        }
+        CoveredObjectsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ScrollObjectsPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+        CoveredObjectsPanel.add(CoveredObjectsLabel);
+        CoveredObjectsPanel.add(ScrollObjectsPane);
+
+        MouseListener ObjectsListener = new MouseAdapter() {
+            public void mouseClicked(MouseEvent mouseEvent) {
+                JList theList = (JList) mouseEvent.getSource();
+                if (mouseEvent.getClickCount() == 1){
+                    int ObjIndex = theList.locationToIndex(mouseEvent.getPoint());
+                    if (ObjIndex >= 0) {
+                        System.out.println("Clicked on: " + ObjIndex);
+                        System.out.println(ObjectsModel.get(ObjIndex));
+                        AttributesModel.clear();
+                        for (int i = 0; i < informationTable.getNumberOfAttributes(); ++i){
+                            AttributesModel.addElement(informationTable.getAttribute(i).getName() + " "
+                                    + informationTable.getField(Integer.valueOf(ObjectsModel.get(ObjIndex).split(" ")[1]) - 1, i));
+                        }
+                    }
+                }
+            }
+        };
+        ObjectsList.addMouseListener(ObjectsListener);
+
+        ObjectNameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ScrollAttributesPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ObjectPanel.add(ObjectNameLabel);
+        ObjectPanel.add(ScrollAttributesPane);
+
+        JDialog dialog = new JDialog(frame, "Dominance Cones", true);
+        dialog.setSize(750,450);
+        dialog.setLocationRelativeTo(frame);
+        dialog.add(CharacteristicPanel, BorderLayout.WEST);
+        dialog.add(CoveredObjectsPanel, BorderLayout.CENTER);
+        dialog.add(ObjectPanel, BorderLayout.EAST);
         dialog.setVisible(true);
     }
 }
