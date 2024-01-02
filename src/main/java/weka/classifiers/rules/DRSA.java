@@ -84,6 +84,9 @@ public class DRSA extends AbstractClassifier implements
         options.add("-ST");
         options.add("" + Th);
 
+        if (AdvancedVisualization){
+            options.add("-advanced-visualization");
+        }
         Collections.addAll(options, super.getOptions());
 
         return options.toArray(new String[0]);
@@ -172,7 +175,7 @@ public class DRSA extends AbstractClassifier implements
         resultSetModel = resultSet;
         if (AdvancedVisualization) {
             Visualization frame = new Visualization();
-            frame.run(resultSetModel.serialize("\n"), unionAtLeastProvider, unionAtMostProvider, informationTable);
+            frame.run(resultSetModel.serialize("\n"), unionAtLeastProvider, unionAtMostProvider, informationTableWithDecisionDistributions);
         }
     }
     public boolean cover(Rule rule, Instance instance){
