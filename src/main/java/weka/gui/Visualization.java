@@ -1,13 +1,18 @@
 package weka.gui;
 
 import it.unimi.dsi.fastutil.ints.IntSortedSet;
+import org.rulelearn.data.Attribute;
 import org.rulelearn.data.InformationTable;
 import org.rulelearn.dominance.DominanceConeCalculator;
 import org.rulelearn.rules.ApproximatedSetProvider;
 import org.rulelearn.rules.RuleSetWithCharacteristics;
+import org.rulelearn.types.EnumerationField;
+import org.rulelearn.types.IntegerField;
+import org.rulelearn.types.RealField;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
@@ -52,10 +57,16 @@ public class Visualization extends Frame {
         tabbedPane.addTab("Class Unions", ClassUnionsPanel);
         tabbedPane.addTab("Rules", RulesPanel);
 
+        /*
+          Dominance Cones Panel
+         */
         DominanceConesPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         DominanceConesPanel.setLayout(new BoxLayout(DominanceConesPanel, BoxLayout.Y_AXIS));
+        DominanceConesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ScrollDominanceConesPane.setAlignmentX(Component.LEFT_ALIGNMENT);
         DominanceConesPanel.add(DominanceConesLabel);
         DominanceConesPanel.add(ScrollDominanceConesPane);
+
         int NumberOfObjects = informationTable.getNumberOfObjects();
         IntSortedSet[] PositiveDCones = new IntSortedSet[NumberOfObjects];
         IntSortedSet[] NegativeDCones = new IntSortedSet[NumberOfObjects];
@@ -97,7 +108,13 @@ public class Visualization extends Frame {
         };
         DominanceConesList.addMouseListener(DominanceConeListener);
 
+        /*
+            Class Unions Panel
+         */
+        ClassUnionsPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         ClassUnionsPanel.setLayout(new BoxLayout(ClassUnionsPanel, BoxLayout.Y_AXIS));
+        UnionsHeaderLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        UnionsList.setAlignmentX(Component.LEFT_ALIGNMENT);
         ClassUnionsPanel.add(UnionsHeaderLabel);
         ClassUnionsPanel.add(UnionsList);
 
@@ -105,7 +122,7 @@ public class Visualization extends Frame {
         UnionsHeaderLabel.setText("NUMBER OF UNIONS: " + UnionsCount);
 
         for (int i = 0; i < UnionsAtMost.getCount(); ++i) {
-            UnionsModel.addElement("<html><div style='border: 1px solid black; padding: 10px;'><br>"
+            UnionsModel.addElement("<html><div><br>"
                     +  "<p>" + UnionsAtMost.getApproximatedSet(i) + "</p> <ul>"
                     + "<li>Accuracy of approximation: " + UnionsAtMost.getApproximatedSet(i).getAccuracyOfApproximation() + "</li>"
                     + "<li>Quality of approximation: " + UnionsAtMost.getApproximatedSet(i).getQualityOfApproximation() + "</li>"
@@ -114,7 +131,7 @@ public class Visualization extends Frame {
         }
 
         for (int i = 0; i < UnionsAtLeast.getCount(); ++i) {
-            UnionsModel.addElement("<html><div style='border: 1px solid black; padding: 10px;'><br>"
+            UnionsModel.addElement("<html><div><br>"
                     +  "<p>" + UnionsAtLeast.getApproximatedSet(i) + "</p> <ul>"
                     + "<li>Accuracy of approximation: " + UnionsAtLeast.getApproximatedSet(i).getAccuracyOfApproximation() + "</li>"
                     + "<li>Quality of approximation: " + UnionsAtLeast.getApproximatedSet(i).getQualityOfApproximation() + "</li>"
@@ -141,7 +158,13 @@ public class Visualization extends Frame {
         };
         UnionsList.addMouseListener(mouseListener);
 
+        /*
+          Rules Panel
+        */
+        RulesPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         RulesPanel.setLayout(new BoxLayout(RulesPanel, BoxLayout.Y_AXIS));
+        RulesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ScrollRulesPane.setAlignmentX(Component.LEFT_ALIGNMENT);
         RulesPanel.add(RulesLabel);
         RulesPanel.add(ScrollRulesPane);
 
@@ -179,7 +202,11 @@ public class Visualization extends Frame {
         frame.setVisible(true);
     }
 
-    public static void UnionDialog(JFrame frame, ApproximatedSetProvider union, InformationTable informationTable, int index){
+    public static void UnionDialog(
+            JFrame frame,
+            ApproximatedSetProvider union,
+            InformationTable informationTable,
+            int index){
 
         JPanel UnionPanel = new JPanel();
         JPanel ObjectsPanel = new JPanel();
@@ -356,7 +383,7 @@ public class Visualization extends Frame {
 
         JLabel DominanceConesLabel = new JLabel("DOMINANCE CONES");
         JLabel DominanceConeNameLabel = new JLabel();
-
+        JLabel ObjectsLabel = new JLabel();
 
         DefaultListModel<String> DominanceConesModel = new DefaultListModel<>();
         JList<String> DominanceConesList = new JList<>(DominanceConesModel);
@@ -369,11 +396,13 @@ public class Visualization extends Frame {
 
         DefaultTableModel RelationsTableModel = new DefaultTableModel();
         JTable RelationsTable = new JTable(RelationsTableModel);
+        JTableHeader RelationsTableHeader = RelationsTable.getTableHeader();
+
         RelationsTableModel.addColumn("ATTRIBUTE NAME");
         RelationsTableModel.addColumn("OBJECT1");
         RelationsTableModel.addColumn("RELATION");
         RelationsTableModel.addColumn("OBJECT2");
-        RelationsTable.setAlignmentX(Component.LEFT_ALIGNMENT);
+
 
         DominanceConesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         DominanceConesList.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -388,7 +417,12 @@ public class Visualization extends Frame {
         ScrollObjectsPane.setAlignmentX(Component.LEFT_ALIGNMENT);
         DomimanceConeObjectsPanel.add(DominanceConeNameLabel);
         DomimanceConeObjectsPanel.add(ScrollObjectsPane);
+        ScrollObjectsPane.setVisible(false);
+        ObjectsLabel.setVisible(false);
 
+        ObjectsLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        RelationsTable.setAlignmentX(Component.LEFT_ALIGNMENT);
+        RelationsPanel.add(ObjectsLabel);
         RelationsPanel.add(RelationsTable);
         MouseListener DominanceConesListener = new MouseAdapter() {
             public void mouseClicked(MouseEvent mouseEvent) {
@@ -447,15 +481,11 @@ public class Visualization extends Frame {
                     if (ObjIndex >= 0) {
                         String relation = null;
                         System.out.println("Clicked on: " + ObjIndex);
+                        ObjectsLabel.setText("ATTR NAME OBJECT  " + (index + 1) + "  RELATION " + " OBJECT " + (ObjIndex + 1));
+                        ObjectsLabel.setVisible(true);
+                        RelationsTable.setTableHeader(RelationsTableHeader);
                         for (int i = 0; i < informationTable.getNumberOfAttributes(); ++i){
-                            if (informationTable.getField(index, i).isDifferentThan(informationTable.getField(ObjIndex, i)).toString() == "FALSE"){
-                                relation= "=";
-                            }
-                            else{
-                                relation = "!=";
-                            }
-
-
+                            relation = getRelation(informationTable, index, ObjIndex, i);
                             RelationsTableModel.addRow(new Object[]{
                                     informationTable.getAttribute(i).getName(),
                                     informationTable.getField(index, i), relation, informationTable.getField(ObjIndex, i)});
@@ -577,4 +607,64 @@ public class Visualization extends Frame {
         dialog.add(ObjectPanel, BorderLayout.EAST);
         dialog.setVisible(true);
     }
+
+    public static String getRelation(InformationTable informationTable, int firstObject, int secondObject, int index) {
+        String relation = null;
+
+        if (informationTable.getField(firstObject, index).equals(informationTable.getField(secondObject, index))){
+            relation= "=";
+        }
+        else if (informationTable.getField(firstObject, index).toString().contains("?") || informationTable.getField(secondObject, index).toString().contains("?")) {
+            relation = "=";
+        }
+        else{
+            if (informationTable.getAttribute(index).getValueType() instanceof IntegerField) {
+                if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("gain")){
+                    relation = Integer.parseInt(informationTable.getField(firstObject, index).toString())
+                            > Integer.parseInt(informationTable.getField(secondObject, index).toString()) ? ">" : "<";
+                }
+                else {
+                    relation = Integer.parseInt(informationTable.getField(firstObject, index).toString())
+                            < Integer.parseInt(informationTable.getField(secondObject, index).toString()) ? ">" : "<";
+                }
+            } else if (informationTable.getAttribute(index).getValueType() instanceof RealField) {
+                if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("gain")){
+                    relation = Float.parseFloat(informationTable.getField(firstObject, index).toString())
+                            > Float.parseFloat(informationTable.getField(secondObject, index).toString()) ? ">" : "<";
+                }
+                else {
+                    relation = Float.parseFloat(informationTable.getField(firstObject, index).toString())
+                            < Float.parseFloat(informationTable.getField(secondObject, index).toString()) ? ">" : "<";
+                }
+            }
+            else if (informationTable.getAttribute(index).getValueType() instanceof EnumerationField){
+
+                System.out.println(informationTable.getField(firstObject, index).getTypeDescriptor().toString());
+
+                String AttributeEnumsString = informationTable.getAttribute(index).serialize().toString();
+
+                String[] AttributeEnums = AttributeEnumsString.substring(AttributeEnumsString.indexOf("(") + 1, AttributeEnumsString.indexOf(")")).split(",");
+                int first_index = 0, second_index = 0;
+                for (int i = 0; i < AttributeEnums.length; ++i){
+                    if (AttributeEnums[i].equals(informationTable.getField(firstObject, index).toString())) {
+                        first_index = i;
+                    }
+                    if (AttributeEnums[i].equals(informationTable.getField(secondObject, index).toString())) {
+                        second_index = i;
+                    }
+                    if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("gain")){
+                        relation = first_index > second_index ? "<" : ">";
+                    }
+                    else if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("cost")){
+                        relation = first_index > second_index ? ">" : "<";
+                    }
+
+                }
+            }
+
+        }
+
+        return relation;
+    }
+
 }
