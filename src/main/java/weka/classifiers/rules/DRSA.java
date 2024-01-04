@@ -19,15 +19,15 @@ import weka.gui.Visualization;
 import java.util.*;
 
 public class DRSA extends AbstractClassifier implements
-        TechnicalInformationHandler {
+        TechnicalInformationHandler, OptionHandler {
 
     String unionsS = "";
-    private double Th = 0.0;
+    private double ConsistencyThreshold = 0.0;
     private Boolean AdvancedVisualization = false;
-    protected int instanceNum = 0;
+    private transient RuleType TypeOfRules = RuleType.CERTAIN;
     private transient Decision[] decisions;
-    protected transient EvaluationAttribute[] rlAttributes;
-    protected transient RuleSetWithCharacteristics resultSetModel = null;
+    private transient EvaluationAttribute[] rlAttributes;
+    private transient RuleSetWithCharacteristics resultRulesSet = null;
     protected transient InformationTableWithDecisionDistributions informationTableWithDecisionDistributions = null;
 
     public String globalInfo(){
@@ -57,7 +57,12 @@ public class DRSA extends AbstractClassifier implements
                 "-advanced-visualization",
                 0,
                 "-advanced-visualization"));
-
+        newVector.addElement(new Option (
+                "\tSet type of rules\n \t(Default: certain)\n",
+                "Type",
+                0,
+                "-Type <type>"
+        ));
         newVector.addAll(Collections.list(super.listOptions()));
         return newVector.elements();
     }
@@ -65,12 +70,19 @@ public class DRSA extends AbstractClassifier implements
     @Override
     public void setOptions(String[] options) throws Exception {
         String conThresh = Utils.getOption("ST", options);
-        if (conThresh.length() != 0) {
-            Th = Double.parseDouble(conThresh);
+        if (!conThresh.isEmpty()) {
+            setConsistencyThreshold(Double.parseDouble(conThresh));
         } else {
-            Th = 0.0;
+            setConsistencyThreshold(0.0);
         }
         AdvancedVisualization = Utils.getFlag("advanced-visualization", options);
+
+        String typeOfRules = Utils.getOption("Type", options);
+        if (typeOfRules.equals("possible")) {
+            TypeOfRules = RuleType.POSSIBLE;
+        }else{
+            TypeOfRules = RuleType.CERTAIN;
+        }
 
 
         super.setOptions(options);
@@ -82,11 +94,15 @@ public class DRSA extends AbstractClassifier implements
     public String[] getOptions() {
         Vector<String> options = new Vector<String>();
         options.add("-ST");
-        options.add("" + Th);
+        options.add(String.valueOf(getConsistencyThreshold()));
 
         if (AdvancedVisualization){
             options.add("-advanced-visualization");
         }
+
+        options.add("-Type");
+        options.add(TypeOfRules.toString().toLowerCase());
+
         Collections.addAll(options, super.getOptions());
 
         return options.toArray(new String[0]);
@@ -94,29 +110,26 @@ public class DRSA extends AbstractClassifier implements
 
     @Override
     public void buildClassifier(Instances data) throws Exception {
-
-
         InformationTable informationTable;
-        ArffInstance2Table arffC = new ArffInstance2Table();
-        informationTable = arffC.convert(data);
+        ArffInstance2Table ArffConverter = new ArffInstance2Table();
+        informationTable = ArffConverter.convert(data);
 
-        rlAttributes = arffC.getAttributes(data);
-
-        /* enum class values */
-        int n = data.numClasses();
-
+        rlAttributes = ArffConverter.getAttributes(data);
 
         informationTableWithDecisionDistributions = new InformationTableWithDecisionDistributions(informationTable);
-        RuleSetWithComputableCharacteristics rules;
-        //UnionsWithSingleLimitingDecision unions = new UnionsWithSingleLimitingDecision(
-        //        informationTableWithDecisionDistributions,
-        //        new VCDominanceBasedRoughSetCalculator(RoughMembershipMeasure.getInstance(), 0.0));
 
         UnionsWithSingleLimitingDecision unions;
+        unions = new UnionsWithSingleLimitingDecision(
+                informationTableWithDecisionDistributions,
+                new VCDominanceBasedRoughSetCalculator(EpsilonConsistencyMeasure.getInstance(), ConsistencyThreshold));
 
+        ApproximatedSetProvider unionAtLeastProvider = new UnionProvider(Union.UnionType.AT_LEAST, unions);
+        ApproximatedSetProvider unionAtMostProvider = new UnionProvider(Union.UnionType.AT_MOST, unions);
+        ApproximatedSetRuleDecisionsProvider unionRuleDecisionsProvider = new UnionWithSingleLimitingDecisionRuleDecisionsProvider();
+
+        int n = data.numClasses();
         decisions = new Decision[n];
         decisions = informationTableWithDecisionDistributions.getOrderedUniqueFullyDeterminedDecisions();
-
         if (data.classAttribute().toString().contains("[c]")){
             for (int i = 0; i < n / 2; i++){
                 Decision temp = decisions[i];
@@ -125,41 +138,52 @@ public class DRSA extends AbstractClassifier implements
             }
 
         }
+        RuleSetWithComputableCharacteristics rules;
+        RuleInducerComponents ruleInducerComponents = null;
+        if (TypeOfRules == RuleType.POSSIBLE) {
 
+            if (!unions.getInformationTable().isSuitableForInductionOfPossibleRules()) {
+                throw new Exception("Creating possible rules is not possible - learning data contain missing attribute values that can lead to non-transitivity of dominance/indiscernibility relation.");
+            }
 
-        unions = new UnionsWithSingleLimitingDecision(
-                informationTableWithDecisionDistributions,
-                new VCDominanceBasedRoughSetCalculator(EpsilonConsistencyMeasure.getInstance(), Th));
+            ruleInducerComponents = new PossibleRuleInducerComponents.Builder().build();
 
-        RuleInducerComponents ruleInducerComponents;
+            rules = (new VCDomLEM(ruleInducerComponents, unionAtLeastProvider, unionRuleDecisionsProvider)).
+                    generateAndFilterRules(CompositeRuleCharacteristicsFilter.of(""));
+            rules.calculateAllCharacteristics();
+            resultRulesSet = rules;
 
-        ApproximatedSetProvider unionAtLeastProvider = new UnionProvider(Union.UnionType.AT_LEAST, unions);
-        ApproximatedSetProvider unionAtMostProvider = new UnionProvider(Union.UnionType.AT_MOST, unions);
-        ApproximatedSetRuleDecisionsProvider unionRuleDecisionsProvider = new UnionWithSingleLimitingDecisionRuleDecisionsProvider();
+            rules = (new VCDomLEM(ruleInducerComponents, unionAtMostProvider, unionRuleDecisionsProvider)).
+                    generateAndFilterRules(CompositeRuleCharacteristicsFilter.of(""));
+            rules.calculateAllCharacteristics();
+            resultRulesSet = RuleSetWithCharacteristics.join(resultRulesSet, rules);
+        }
+        if (TypeOfRules == RuleType.CERTAIN) {
+            final RuleInductionStoppingConditionChecker stoppingConditionChecker =
+                    new EvaluationAndCoverageStoppingConditionChecker(
+                            EpsilonConsistencyMeasure.getInstance(),
+                            EpsilonConsistencyMeasure.getInstance(),
+                            EpsilonConsistencyMeasure.getInstance(),
+                            ((VCDominanceBasedRoughSetCalculator) unions.getRoughSetCalculator()).getLowerApproximationConsistencyThreshold()
+                    );
+            ruleInducerComponents = new CertainRuleInducerComponents.Builder().
+                    ruleInductionStoppingConditionChecker(stoppingConditionChecker).
+                    ruleConditionsPruner(new AttributeOrderRuleConditionsPruner(stoppingConditionChecker)).
+                    ruleConditionsGeneralizer(new OptimizingRuleConditionsGeneralizer(stoppingConditionChecker)).
+                    build();
 
-        //ruleInducerComponents = new PossibleRuleInducerComponents.Builder().build();
-        final RuleInductionStoppingConditionChecker stoppingConditionChecker =
-                new EvaluationAndCoverageStoppingConditionChecker(
-                        EpsilonConsistencyMeasure.getInstance(),
-                        EpsilonConsistencyMeasure.getInstance(),
-                        EpsilonConsistencyMeasure.getInstance(),
-                        ((VCDominanceBasedRoughSetCalculator) unions.getRoughSetCalculator()).getLowerApproximationConsistencyThreshold()
-                );
-        ruleInducerComponents = new CertainRuleInducerComponents.Builder().
-                ruleInductionStoppingConditionChecker(stoppingConditionChecker).
-                ruleConditionsPruner(new AttributeOrderRuleConditionsPruner(stoppingConditionChecker)).
-                ruleConditionsGeneralizer(new OptimizingRuleConditionsGeneralizer(stoppingConditionChecker)).
-                build();
+            rules = (new VCDomLEM(ruleInducerComponents, unionAtLeastProvider, unionRuleDecisionsProvider)).
+                    generateAndFilterRules(CompositeRuleCharacteristicsFilter.of(""));
+            rules.calculateAllCharacteristics();
+            resultRulesSet = rules;
 
-        rules = (new VCDomLEM(ruleInducerComponents, unionAtLeastProvider, unionRuleDecisionsProvider)).generateAndFilterRules(CompositeRuleCharacteristicsFilter.of(""));
-        rules.calculateAllCharacteristics();
-        RuleSetWithCharacteristics resultSet = rules;
+            rules = (new VCDomLEM(ruleInducerComponents, unionAtMostProvider, unionRuleDecisionsProvider)).
+                    generateAndFilterRules(CompositeRuleCharacteristicsFilter.of(""));
+            rules.calculateAllCharacteristics();
+            resultRulesSet = RuleSetWithCharacteristics.join(resultRulesSet, rules);
 
-        rules = (new VCDomLEM(ruleInducerComponents, unionAtMostProvider, unionRuleDecisionsProvider)).generateAndFilterRules(CompositeRuleCharacteristicsFilter.of(""));
-        rules.calculateAllCharacteristics();
-        resultSet = RuleSetWithCharacteristics.join(resultSet, rules);
-
-        resultSet.setLearningInformationTableHash(unions.getInformationTable().getHash());
+            resultRulesSet.setLearningInformationTableHash(unions.getInformationTable().getHash());
+        }
 
         for (int i = 0; i < unionAtLeastProvider.getCount(); i++) {
             unionsS +=(unionAtLeastProvider.getApproximatedSet(i) + " "
@@ -172,10 +196,8 @@ public class DRSA extends AbstractClassifier implements
                     + unionAtMostProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
         }
         ;
-        resultSetModel = resultSet;
         if (AdvancedVisualization) {
-            Visualization frame = new Visualization();
-            frame.run(resultSetModel.serialize("\n"), unionAtLeastProvider, unionAtMostProvider, informationTableWithDecisionDistributions);
+            Visualization.run(unionAtLeastProvider, unionAtMostProvider, informationTableWithDecisionDistributions, resultRulesSet);
         }
     }
     public boolean cover(Rule rule, Instance instance){
@@ -216,10 +238,10 @@ public class DRSA extends AbstractClassifier implements
         return true;
     }
     @Override
-    public double classifyInstance(Instance instance) throws Exception {
+    public double classifyInstance(Instance instance) {
         double covers = 0;
-        for (int i = 0; i < resultSetModel.size(); i++) {
-            Rule rule = resultSetModel.getRule(i);
+        for (int i = 0; i < resultRulesSet.size(); i++) {
+            Rule rule = resultRulesSet.getRule(i);
             //if(rule.covers(instanceNum, informationTableWithDecisionDistributions)) {
             if(cover(rule, instance)) {
                 for (int j = 0; j < instance.numClasses(); j++){
@@ -239,15 +261,34 @@ public class DRSA extends AbstractClassifier implements
     @Override
     public String toString() {
 
-        StringBuffer text = new StringBuffer();
-
-        text.append("\nCLASS UNIONS: \n ===========\n");
-        text.append(unionsS);
-        text.append("\nDRSA rules: \n ===========\n");
-        text.append(resultSetModel.serialize("\n"));
-        text.append("\nNum of Rules: " + resultSetModel.size() + "\n");
-        return text.toString();
+        return "\nCLASS UNIONS: \n ===========\n" +
+                unionsS +
+                "\nDRSA rules: \n ===========\n" +
+                resultRulesSet.serialize("\n") +
+                "\nNum of Rules: " + resultRulesSet.size() + "\n";
     }
+
+    public double getConsistencyThreshold() {
+        return ConsistencyThreshold;
+    }
+    public void setConsistencyThreshold(double consistencyThreshold) {
+        ConsistencyThreshold = consistencyThreshold;
+    }
+    public boolean getAdvancedVisualization() {
+        return AdvancedVisualization;
+    }
+    public void setAdvancedVisualization(boolean advancedVisualization) {
+        AdvancedVisualization = advancedVisualization;
+    }
+    public RuleType getTypeOfRules() {
+        return  TypeOfRules;
+    }
+    public void setTypeOfRules(RuleType typeOfRules) {
+        TypeOfRules = typeOfRules;
+    }
+
+
+
 
     public static void main(String[] args){
         runClassifier(new DRSA(), args);
