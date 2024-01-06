@@ -1,0 +1,8 @@
+package org.enums;
+
+public enum TypeOfClassifier {
+    SIMPLE_RULE_CLASSIFIER_AVG,
+    SIMPLE_RULE_CLASSIFIER_MODE,
+    SCORING_RULE_CLASSIFIER,
+    HYBRID_SCORING_RULE_CLASSIFIER
+}
