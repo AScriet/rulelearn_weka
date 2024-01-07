@@ -1,13 +1,11 @@
 package weka.classifiers.rules;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntList;
 import org.enums.*;
 import org.enums.RuleType;
 import org.rulelearn.approximations.*;
 import org.rulelearn.classification.*;
 import org.rulelearn.data.*;
-import org.rulelearn.rules.Rule;
 import org.rulelearn.rules.RuleSetWithCharacteristics;
 import org.rulelearn.measures.dominance.EpsilonConsistencyMeasure;
 import org.rulelearn.rules.*;
@@ -20,24 +18,22 @@ import weka.gui.Visualization;
 
 import java.util.*;
 
-
 public class DRSA extends AbstractClassifier implements
         TechnicalInformationHandler{
 
-    String unionsS = "";
-    private Double ConsistencyThreshold;
-    protected boolean AdvancedVisualization;
+    public String unionsString = "";
+    public RuleType typeOfRules;
+    private Double consistencyThreshold;
+    protected Boolean advancedVisualization;
     public TypeOfClassifier typeOfClassifier;
     public DefaulClassificationResult defaulClassificationResult;
-    public RuleType TypeOfRules;
     private transient Decision[] decisions;
+    private transient RuleClassifier classifier;
     private transient EvaluationAttribute[] rlAttributes;
-    private transient ApproximatedSetProvider unionAtLeastProvider = null;
-    private transient ApproximatedSetProvider unionAtMostProvider = null;
-    public transient RuleSetWithCharacteristics resultRulesSet;
-    protected transient InformationTableWithDecisionDistributions informationTableWithDecisionDistributions = null;
-    private transient SimpleClassificationResult simpleClassificationResult;
-    private transient RuleClassifier classifier = null;
+    private transient RuleSetWithCharacteristics resultRulesSet;
+    private transient ApproximatedSetProvider unionAtLeastProvider;
+    private transient ApproximatedSetProvider unionAtMostProvider;
+    protected transient InformationTableWithDecisionDistributions informationTableWithDecisionDistributions;
 
     public String globalInfo(){
 
@@ -49,7 +45,7 @@ public class DRSA extends AbstractClassifier implements
     public TechnicalInformation getTechnicalInformation() {
         TechnicalInformation info;
         info = new TechnicalInformation(TechnicalInformation.Type.ARTICLE);
-        info.setValue(TechnicalInformation.Field.AUTHOR, "X");
+        info.setValue(TechnicalInformation.Field.AUTHOR, "Andrii Stepaniuk");
         return info;
     }
 
@@ -80,6 +76,12 @@ public class DRSA extends AbstractClassifier implements
                 0,
                 "-ClassifierType <type>"
         ));
+        newVector.addElement(new Option(
+                "\tSet default classification result\n \t(Default: Majority decision class)\n",
+                "ClassifierType",
+                0,
+                "-DefClassificationResult <type>"
+        ));
         newVector.addAll(Collections.list(super.listOptions()));
         return newVector.elements();
     }
@@ -93,13 +95,13 @@ public class DRSA extends AbstractClassifier implements
         } else {
             setConsistencyThreshold(0.0);
         }
-        AdvancedVisualization = Utils.getFlag("advanced-visualization", options);
+        advancedVisualization = Utils.getFlag("advanced-visualization", options);
 
         String typeOfRules = Utils.getOption("Type", options);
         if (typeOfRules.equals("POSSIBLE")) {
-            TypeOfRules = RuleType.POSSIBLE;
+            this.typeOfRules = RuleType.POSSIBLE;
         }else{
-            TypeOfRules = RuleType.CERTAIN;
+            this.typeOfRules = RuleType.CERTAIN;
         }
         String classificationType = Utils.getOption("ClassificationType", options);
         switch (classificationType) {
@@ -116,7 +118,7 @@ public class DRSA extends AbstractClassifier implements
                 typeOfClassifier = TypeOfClassifier.HYBRID_SCORING_RULE_CLASSIFIER;
                 break;
         }
-        String defaultClassificationResult1 = Utils.getOption("DefaulClassificationResult", options);
+        String defaultClassificationResult1 = Utils.getOption("DefClassificationResult", options);
         if (defaultClassificationResult1.equals("MAJORITY_DECISION_CLASS")) {
             defaulClassificationResult = DefaulClassificationResult.MAJORITY_DECISION_CLASS;
         }else{
@@ -133,12 +135,12 @@ public class DRSA extends AbstractClassifier implements
         options.add("-ST");
         options.add(String.valueOf(getConsistencyThreshold()));
 
-        if (AdvancedVisualization){
+        if (advancedVisualization){
             options.add("-advanced-visualization");
         }
 
         options.add("-Type");
-        options.add(TypeOfRules.toString());
+        options.add(typeOfRules.toString());
 
         options.add("-ClassificationType");
         options.add(typeOfClassifier.toString());
@@ -165,7 +167,7 @@ public class DRSA extends AbstractClassifier implements
         UnionsWithSingleLimitingDecision unions;
         unions = new UnionsWithSingleLimitingDecision(
                 informationTableWithDecisionDistributions,
-                new VCDominanceBasedRoughSetCalculator(EpsilonConsistencyMeasure.getInstance(), ConsistencyThreshold));
+                new VCDominanceBasedRoughSetCalculator(EpsilonConsistencyMeasure.getInstance(), consistencyThreshold));
 
         unionAtLeastProvider = new UnionProvider(Union.UnionType.AT_LEAST, unions);
         unionAtMostProvider = new UnionProvider(Union.UnionType.AT_MOST, unions);
@@ -185,7 +187,7 @@ public class DRSA extends AbstractClassifier implements
 
         RuleSetWithComputableCharacteristics rules;
         RuleInducerComponents ruleInducerComponents = null;
-        if (TypeOfRules == RuleType.POSSIBLE) {
+        if (typeOfRules == RuleType.POSSIBLE) {
 
             if (!unions.getInformationTable().isSuitableForInductionOfPossibleRules()) {
                 throw new Exception("Creating possible rules is not possible - learning data contain missing attribute values that can lead to non-transitivity of dominance/indiscernibility relation.");
@@ -203,7 +205,7 @@ public class DRSA extends AbstractClassifier implements
             rules.calculateAllCharacteristics();
             resultRulesSet = RuleSetWithCharacteristics.join(resultRulesSet, rules);
         }
-        else if (TypeOfRules == RuleType.CERTAIN) {
+        else if (typeOfRules == RuleType.CERTAIN) {
             final RuleInductionStoppingConditionChecker stoppingConditionChecker =
                     new EvaluationAndCoverageStoppingConditionChecker(
                             EpsilonConsistencyMeasure.getInstance(),
@@ -231,16 +233,24 @@ public class DRSA extends AbstractClassifier implements
         }
 
         for (int i = 0; i < unionAtLeastProvider.getCount(); i++) {
-            unionsS +=(unionAtLeastProvider.getApproximatedSet(i) + " "
+            unionsString +=(unionAtLeastProvider.getApproximatedSet(i) + " "
                     + unionAtLeastProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
                     + unionAtLeastProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
         }
         for (int i = 0; i < unionAtMostProvider.getCount(); i++) {
-            unionsS +=(unionAtMostProvider.getApproximatedSet(i) + " "
+            unionsString +=(unionAtMostProvider.getApproximatedSet(i) + " "
                     + unionAtMostProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
                     + unionAtMostProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
         }
-        SimpleDecision simpleDecision = null;
+        prepareClassifier();
+
+    }
+
+    public void prepareClassifier() {
+        SimpleDecision simpleDecision;
+        SimpleClassificationResult simpleClassificationResult = null;
+        SimpleEvaluatedClassificationResult simpleEvaluatedClassificationResult = null;
+
         switch (defaulClassificationResult) {
             case MAJORITY_DECISION_CLASS:
                 List<Decision> modes = informationTableWithDecisionDistributions.getDecisionDistribution().getMode();
@@ -249,7 +259,12 @@ public class DRSA extends AbstractClassifier implements
                 } else {
                     simpleDecision = new SimpleDecision(new UnknownSimpleFieldMV2(), 0);
                 }
-                simpleClassificationResult = new SimpleClassificationResult(simpleDecision);
+                if (typeOfClassifier == TypeOfClassifier.SIMPLE_RULE_CLASSIFIER_AVG || typeOfClassifier == TypeOfClassifier.SIMPLE_RULE_CLASSIFIER_MODE) {
+                    simpleClassificationResult = new SimpleClassificationResult(simpleDecision);
+                }
+                else{
+                    simpleEvaluatedClassificationResult = new SimpleEvaluatedClassificationResult(simpleDecision, 1.0);
+                }
             case MEDIAN_DECISION_CLASS:
                 Decision median = informationTableWithDecisionDistributions.getDecisionDistribution().getMedian(informationTableWithDecisionDistributions.getOrderedUniqueFullyDeterminedDecisions());
 
@@ -258,8 +273,12 @@ public class DRSA extends AbstractClassifier implements
                 } else {
                     simpleDecision = new SimpleDecision(new UnknownSimpleFieldMV2(), 0);
                 }
-
-                simpleClassificationResult = new SimpleClassificationResult(simpleDecision);
+                if (typeOfClassifier == TypeOfClassifier.SIMPLE_RULE_CLASSIFIER_AVG || typeOfClassifier == TypeOfClassifier.SIMPLE_RULE_CLASSIFIER_MODE) {
+                    simpleClassificationResult = new SimpleClassificationResult(simpleDecision);
+                }
+                else {
+                    simpleEvaluatedClassificationResult = new SimpleEvaluatedClassificationResult(simpleDecision, 1.0);
+                }
                 break;
         }
 
@@ -268,93 +287,30 @@ public class DRSA extends AbstractClassifier implements
                 classifier = new SimpleRuleClassifier(resultRulesSet, simpleClassificationResult);
                 break;
             case SIMPLE_RULE_CLASSIFIER_MODE:
-                classifier = new SimpleOptimizingCountingRuleClassifier(resultRulesSet, simpleClassificationResult, informationTable);
+                classifier = new SimpleOptimizingCountingRuleClassifier(resultRulesSet, simpleClassificationResult, informationTableWithDecisionDistributions);
+                break;
+            case SCORING_RULE_CLASSIFIER:
+                classifier = new ScoringRuleClassifier(resultRulesSet, simpleEvaluatedClassificationResult, ScoringRuleClassifier.Mode.SCORE, informationTableWithDecisionDistributions);
+                break;
+            case HYBRID_SCORING_RULE_CLASSIFIER:
+                classifier = new ScoringRuleClassifier(resultRulesSet, simpleEvaluatedClassificationResult, ScoringRuleClassifier.Mode.HYBRID, informationTableWithDecisionDistributions);
                 break;
             default:
                 break;
         }
-
-    }
-    public boolean cover(Rule rule, Instance instance){
-
-        int conditionsSize = rule.getConditions().length;
-
-        EvaluationField[] fields;
-        int numRuleLearnAttributes = rlAttributes.length;
-        fields = new EvaluationField[numRuleLearnAttributes];
-        double value;
-
-        for (int i = 0; i < numRuleLearnAttributes; i++){
-            if (instance.isMissing(i)){
-                fields[i] = rlAttributes[i].getMissingValueType();
-            }
-            else {
-                value = instance.value(i);
-                if (rlAttributes[i].getValueType() instanceof IntegerField){
-                    fields[i] = IntegerFieldFactory.getInstance().create((int)value, rlAttributes[i].getPreferenceType());
-                }
-                else if (rlAttributes[i].getValueType() instanceof  RealField) {
-                    fields[i] = RealFieldFactory.getInstance().create((int)value, rlAttributes[i].getPreferenceType());
-                } else if (rlAttributes[i].getValueType() instanceof EnumerationField) {
-                    fields[i] = EnumerationFieldFactory.getInstance().create(((EnumerationField)rlAttributes[i].getValueType()).getElementList(), (int)value, rlAttributes[i].getPreferenceType());
-                }
-            }
-        }
-
-        for (int i = 0; i < conditionsSize; i++) {
-
-            int index = rule.getConditions()[i].getAttributeWithContext().getAttributeIndex();
-
-            for (int j = 0; j < instance.numAttributes() - 1; j++) {
-                        if (!rule.getConditions()[i].satisfiedBy(fields[index]))
-                            return false;
-                    }
-            }
-        return true;
     }
     @Override
     public double classifyInstance(Instance instance) {
-        double covers = 0;
-/*
-        for (int i = 0; i < resultRulesSet.size(); i++) {
-            Rule rule = resultRulesSet.getRule(i);
-            //if(rule.covers(instanceNum, informationTableWithDecisionDistributions)) {
-            if(cover(rule, instance)) {
-                for (int j = 0; j < instance.numClasses(); j++){
-                    //System.out.println(rule.getDecision().toString() + " " + decisions[j].serialize());
-                    if (rule.getDecision().toString().contains(decisions[j].serialize().replace("8:", ""))){
-                        covers = j;
-                    }
-                }
-                break;
-            }
+        double covers = 0.0;
 
-        }
-*/
         ArffInstance2Table arffInstance2Table = new ArffInstance2Table();
         InformationTable informationTable = arffInstance2Table.getTable(rlAttributes, instance);
 
-        covers = classify(informationTable);
-        return covers;
-    }
+        IntArrayList indicesOfCoveringRules = new IntArrayList();
+        ClassificationResult classificationResults = classifier.classify(0, informationTable, indicesOfCoveringRules);
 
-    public double classify(InformationTable informationTable) {
-
-
-        double covers = 0.0;
-
-        int objectIndex;
-        int objectCount = informationTable.getNumberOfObjects();
-        IntList[] indicesOfCoveringRules = new IntList[objectCount];
-
-        ClassificationResult[] classificationResults = new ClassificationResult[objectCount];
-        for (objectIndex = 0; objectIndex < classificationResults.length; objectIndex++) {
-            indicesOfCoveringRules[objectIndex] = new IntArrayList();
-            classificationResults[objectIndex] = classifier.classify(objectIndex, informationTable, indicesOfCoveringRules[objectIndex]);
-        }
-        //System.out.println(classificationResults[0].getSuggestedDecision());
         for (int i = 0; i < decisions.length; ++i) {
-            if (decisions[i].serialize().toString().contains(classificationResults[0].getSuggestedDecision().serialize().replace("8:", ""))) {
+            if (decisions[i].equals(classificationResults.getSuggestedDecision())) {
                 covers = i;
             }
         }
@@ -363,39 +319,42 @@ public class DRSA extends AbstractClassifier implements
 
     @Override
     public String toString() {
-        if (AdvancedVisualization) {
+        if (advancedVisualization) {
             Visualization.run(unionAtLeastProvider, unionAtMostProvider, informationTableWithDecisionDistributions, resultRulesSet);
+            return "\nDRSA rules: \n ===========\n" +
+                    resultRulesSet.serialize("\n");
         }
-        return "\nCLASS UNIONS: \n ===========\n" +
-                unionsS +
-                "\nDRSA rules: \n ===========\n" +
-                resultRulesSet.serialize("\n") +
-                "\nNum of Rules: " + resultRulesSet.size() + "\n";
+        else {
+            return "\nCLASS UNIONS: \n ===========\n" +
+                    unionsString +
+                    "\nDRSA rules: \n ===========\n" +
+                    resultRulesSet.serialize("\n") +
+                    "\nNum of Rules: " + resultRulesSet.size() + "\n";
+        }
     }
 
-    public Double getConsistencyThreshold() {return ConsistencyThreshold;}
-    public void setConsistencyThreshold(Double consistencyThreshold) {this.ConsistencyThreshold = consistencyThreshold;}
-    public boolean getAdvancedVisualization() {return AdvancedVisualization;}
-    public void setAdvancedVisualization(boolean advancedVisualization) {this.AdvancedVisualization = advancedVisualization;}
-    public RuleType getTypeOfRules() {return  TypeOfRules;}
-    public void setTypeOfRules(RuleType typeOfRules) {this.TypeOfRules = typeOfRules;}
-    public DefaulClassificationResult getDefaulClassificationResult() {return defaulClassificationResult;};
+    public Double getConsistencyThreshold() {return this.consistencyThreshold;}
+    public void setConsistencyThreshold(Double consistencyThreshold) {this.consistencyThreshold = consistencyThreshold;}
+    public boolean getAdvancedVisualization() {return this.advancedVisualization;}
+    public void setAdvancedVisualization(boolean advancedVisualization) {this.advancedVisualization = advancedVisualization;}
+    public RuleType getTypeOfRules() {return this.typeOfRules;}
+    public void setTypeOfRules(RuleType typeOfRules) {this.typeOfRules = typeOfRules;}
+    public DefaulClassificationResult getDefaulClassificationResult() {return this.defaulClassificationResult;};
     public void setDefaulClassificationResult(DefaulClassificationResult defaulClassificationResult){this.defaulClassificationResult = defaulClassificationResult;}
-    public TypeOfClassifier getTypeOfClassifier(){return typeOfClassifier;}
+    public TypeOfClassifier getTypeOfClassifier(){return this.typeOfClassifier;}
     public void setTypeOfClassifier(TypeOfClassifier typeOfClassifier){ this.typeOfClassifier = typeOfClassifier;}
 
     public void resetOptions(){
-        this.ConsistencyThreshold = 0.0;
-        this.TypeOfRules = RuleType.CERTAIN;
-        this.typeOfClassifier = TypeOfClassifier.SIMPLE_RULE_CLASSIFIER_MODE;
+        this.consistencyThreshold = 0.0;
+        this.typeOfRules = RuleType.CERTAIN;
+        this.typeOfClassifier = TypeOfClassifier.SIMPLE_RULE_CLASSIFIER_AVG;
         this.defaulClassificationResult = DefaulClassificationResult.MAJORITY_DECISION_CLASS;
-        this.AdvancedVisualization = false;
+        this.advancedVisualization = false;
     }
 
     public DRSA(){
         resetOptions();
     }
-
 
     public static void main(String[] args){
         runClassifier(new DRSA(), args);
