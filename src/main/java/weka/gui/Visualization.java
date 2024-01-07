@@ -1,7 +1,6 @@
 package weka.gui;
 
 import it.unimi.dsi.fastutil.ints.IntSortedSet;
-import org.rulelearn.data.Attribute;
 import org.rulelearn.data.InformationTable;
 import org.rulelearn.dominance.DominanceConeCalculator;
 import org.rulelearn.rules.ApproximatedSetProvider;
@@ -12,7 +11,6 @@ import org.rulelearn.types.RealField;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
@@ -32,12 +30,11 @@ public class Visualization extends Frame {
         frame.setSize(800, 500);
 
         JTabbedPane tabbedPane = new JTabbedPane();
-        /** Panels */
+
         JPanel ClassUnionsPanel = new JPanel();
         JPanel DominanceConesPanel = new JPanel();
         JPanel RulesPanel = new JPanel();
 
-        /** Elements */
         JLabel UnionsHeaderLabel = new JLabel();
         JLabel DominanceConesLabel = new JLabel();
         JLabel RulesLabel = new JLabel();
@@ -99,7 +96,6 @@ public class Visualization extends Frame {
                 if (mouseEvent.getClickCount() == 1) {
                     int index = theList.locationToIndex(mouseEvent.getPoint());
                     if (index >= 0) {
-                        System.out.println("Double-clicked on: " + index);
                         DominanceConesDialog(frame, informationTable, PositiveDCones[index], NegativeDCones[index], PositiveInvDCones[index], NegativeInvDCones[index], index);
 
                     }
@@ -123,19 +119,19 @@ public class Visualization extends Frame {
 
         for (int i = 0; i < UnionsAtMost.getCount(); ++i) {
             UnionsModel.addElement("<html><div><br>"
-                    +  "<p>" + UnionsAtMost.getApproximatedSet(i) + "</p> <ul>"
-                    + "<li>Accuracy of approximation: " + UnionsAtMost.getApproximatedSet(i).getAccuracyOfApproximation() + "</li>"
-                    + "<li>Quality of approximation: " + UnionsAtMost.getApproximatedSet(i).getQualityOfApproximation() + "</li>"
-                    + "</ul></div></html>"
+                    +  "<p>" + UnionsAtMost.getApproximatedSet(i) + "</p>"
+                    + "<br>Accuracy of approximation: " + UnionsAtMost.getApproximatedSet(i).getAccuracyOfApproximation()
+                    + "<br>Quality of approximation: " + UnionsAtMost.getApproximatedSet(i).getQualityOfApproximation()
+                    + "</div></html>"
             );
         }
 
         for (int i = 0; i < UnionsAtLeast.getCount(); ++i) {
             UnionsModel.addElement("<html><div><br>"
-                    +  "<p>" + UnionsAtLeast.getApproximatedSet(i) + "</p> <ul>"
-                    + "<li>Accuracy of approximation: " + UnionsAtLeast.getApproximatedSet(i).getAccuracyOfApproximation() + "</li>"
-                    + "<li>Quality of approximation: " + UnionsAtLeast.getApproximatedSet(i).getQualityOfApproximation() + "</li>"
-                    + "</ul></div></html>"
+                    +  "<p>" + UnionsAtLeast.getApproximatedSet(i) + "</p>"
+                    + "<br>Accuracy of approximation: " + UnionsAtLeast.getApproximatedSet(i).getAccuracyOfApproximation()
+                    + "<br>Quality of approximation: " + UnionsAtLeast.getApproximatedSet(i).getQualityOfApproximation()
+                    + "</div></html>"
             );
         }
 
@@ -145,7 +141,6 @@ public class Visualization extends Frame {
                 if (mouseEvent.getClickCount() == 1) {
                     int index = theList.locationToIndex(mouseEvent.getPoint());
                     if (index >= 0) {
-                        System.out.println("Double-clicked on: " + index);
                         if (index > 1){
                             index %= 2;
                             UnionDialog(frame, UnionsAtLeast, informationTable, index);
@@ -171,7 +166,7 @@ public class Visualization extends Frame {
         RulesLabel.setText("NUMBER OF RULES: " + ruleSet.size());
         String RuleString;
         for (int i = 0; i < ruleSet.size(); ++i) {
-            RuleString = "<html>" + ruleSet.getRule(i).getDecision();
+            RuleString = "<html><div>" + ruleSet.getRule(i).getDecision();
 
             for (int j = 0; j < ruleSet.getRule(i).getConditions().length; ++j){
                 RuleString += "<br>" + ruleSet.getRule(i).getConditions()[j];
@@ -180,7 +175,7 @@ public class Visualization extends Frame {
                     + " | Strength: " + ruleSet.getRuleCharacteristics(i).getStrength()
                     + " | Coverage Factor: " + ruleSet.getRuleCharacteristics(i).getCoverageFactor()
                     + " | Confidence: " + ruleSet.getRuleCharacteristics(i).getConfidence()
-                    + " | Epsilon measure: " + ruleSet.getRuleCharacteristics(i).getEpsilon();
+                    + " | Epsilon measure: " + ruleSet.getRuleCharacteristics(i).getEpsilon() + "<br></div></html>";
 
             RulesListModel.addElement(RuleString);
         }
@@ -190,7 +185,6 @@ public class Visualization extends Frame {
                 if (mouseEvent.getClickCount() == 1) {
                     int index = theList.locationToIndex(mouseEvent.getPoint());
                     if (index >= 0) {
-                        System.out.println("Double-clicked on: " + index);
                         RulesDialog(frame, informationTable, ruleSet, index);
                     }
                 }
@@ -221,11 +215,12 @@ public class Visualization extends Frame {
         JLabel AttributesLabel = new JLabel();
         JLabel ValuesLabel = new JLabel();
 
-        JTextArea UnionTextArea = new JTextArea();
-        UnionTextArea.setText(union.getApproximatedSet(index)
-                + "\nAccuracy of approximation " + union.getApproximatedSet(index).getAccuracyOfApproximation()
-                +  "\nQuality of approximation " + union.getApproximatedSet(index).getQualityOfApproximation()
-        );
+        DefaultListModel<String> UnionModel = new DefaultListModel<>();
+        JList<String> UnionList = new JList<>(UnionModel);
+        UnionModel.addElement(union.getApproximatedSet(index).toString());
+        UnionModel.addElement("Accuracy of approximation " + union.getApproximatedSet(index).getAccuracyOfApproximation());
+        UnionModel.addElement("Accuracy of approximation " + union.getApproximatedSet(index).getQualityOfApproximation());
+
 
         DefaultListModel<String> OptionsModel = new DefaultListModel<>();
         JList<String> OptionsList = new JList<>(OptionsModel);
@@ -244,7 +239,6 @@ public class Visualization extends Frame {
                 if (mouseEvent.getClickCount() == 1) {
                     int OptionIndex = theList.locationToIndex(mouseEvent.getPoint());
                     if (OptionIndex >= 0) {
-                        System.out.println("Double-clicked on: " + OptionIndex);
                         ObjectsModel.clear();
                         ObjectsLabel.setVisible(true);
                         ObjectsList.setVisible(true);
@@ -298,12 +292,10 @@ public class Visualization extends Frame {
                     AttributesLabel.setVisible(true);
                     int ObjIndex = theList.locationToIndex(mouseEvent.getPoint());
                     if (ObjIndex >= 0) {
-                        System.out.println("Clicked on: " + ObjIndex);
-                        System.out.println(ObjectsModel.get(ObjIndex));
                         AttributesModel.clear();
                         for (int i = 0; i < informationTable.getNumberOfAttributes(); ++i){
                             AttributesModel.addElement(informationTable.getAttribute(i).getName() + " "
-                                    + informationTable.getField(Integer.valueOf(ObjectsModel.get(ObjIndex).split(" ")[1]) - 1, i));
+                                    + informationTable.getField(Integer.parseInt(ObjectsModel.get(ObjIndex).split(" ")[1]) - 1, i));
                         }
                     }
                 }
@@ -343,16 +335,16 @@ public class Visualization extends Frame {
         ValuesLabel.setHorizontalAlignment(SwingConstants.LEFT);
 
         ValuesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        UnionTextArea.setAlignmentX(Component.LEFT_ALIGNMENT);
+        UnionList.setAlignmentX(Component.LEFT_ALIGNMENT);
         AttributesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         ScrollAttributesPane.setAlignmentX(Component.LEFT_ALIGNMENT);
         AttributesPanel.add(ValuesLabel);
-        AttributesPanel.add(UnionTextArea);
+        AttributesPanel.add(UnionList);
         AttributesPanel.add(AttributesLabel);
         AttributesPanel.add(ScrollAttributesPane);
 
-        JDialog dialog = new JDialog(frame, "Union Details", true);
-        dialog.setSize(750,450);
+        JDialog dialog = new JDialog(frame, "Selected Union: " + union.getApproximatedSet(index).toString(), true);
+        dialog.setSize(800,500);
         dialog.setLocationRelativeTo(frame);
         dialog.add(UnionPanel, BorderLayout.WEST);
         dialog.add(ObjectsPanel, BorderLayout.CENTER);
@@ -432,32 +424,31 @@ public class Visualization extends Frame {
                     DominanceConeNameLabel.setVisible(true);
                     int Coneindex = theList.locationToIndex(mouseEvent.getPoint());
                     if (Coneindex >= 0) {
-                        System.out.println("Clicked on: " + Coneindex);
                         ObjectsModel.clear();
 
                         switch (Coneindex) {
                             case 0:
                                 DominanceConeNameLabel.setText("POSITIVE DOMINANCE CONE");
                                 for (int i = 0; i < positiveDCone.size(); i++) {
-                                    ObjectsModel.addElement("Object " + (Integer.valueOf(positiveDCone.toArray()[i].toString()) + 1));
+                                    ObjectsModel.addElement("Object " + (Integer.parseInt(positiveDCone.toArray()[i].toString()) + 1));
                                 }
                                 break;
                             case 1:
                                 DominanceConeNameLabel.setText("NEGATIVE DOMINANCE CONE");
                                 for (int i = 0; i < negativeDCone.size(); i++) {
-                                    ObjectsModel.addElement("Object " + (Integer.valueOf(negativeDCone.toArray()[i].toString()) + 1));
+                                    ObjectsModel.addElement("Object " + (Integer.parseInt(negativeDCone.toArray()[i].toString()) + 1));
                                 }
                                 break;
                             case 2:
                                 DominanceConeNameLabel.setText("POSITIVE INVERSE DOMINANCE CONE");
                                 for (int i = 0; i < positiveInvDCone.size(); i++) {
-                                    ObjectsModel.addElement("Object " + (Integer.valueOf(positiveInvDCone.toArray()[i].toString()) + 1));
+                                    ObjectsModel.addElement("Object " + (Integer.parseInt(positiveInvDCone.toArray()[i].toString()) + 1));
                                 }
                                 break;
                             case 3:
                                 DominanceConeNameLabel.setText("NEGATIVE INVERSE DOMINANCE CONE");
                                 for (int i = 0; i < negativeInvDCone.size(); i++) {
-                                    ObjectsModel.addElement("Object " + (Integer.valueOf(negativeInvDCone.toArray()[i].toString()) + 1));
+                                    ObjectsModel.addElement("Object " + (Integer.parseInt(negativeInvDCone.toArray()[i].toString()) + 1));
                                 }
                                 break;
                             default:
@@ -477,10 +468,9 @@ public class Visualization extends Frame {
                     //DominanceConeNameLabel.setVisible(true);
                     RelationsTableModel.getDataVector().removeAllElements();
                     int ObjIndex = theList.locationToIndex(mouseEvent.getPoint());
-                    ObjIndex = Integer.valueOf(ObjectsModel.get(ObjIndex).split(" ")[1]) - 1;
+                    ObjIndex = Integer.parseInt(ObjectsModel.get(ObjIndex).split(" ")[1]) - 1;
                     if (ObjIndex >= 0) {
                         String relation = null;
-                        System.out.println("Clicked on: " + ObjIndex);
                         ObjectsLabel.setText("ATTR NAME OBJECT  " + (index + 1) + "  RELATION " + " OBJECT " + (ObjIndex + 1));
                         ObjectsLabel.setVisible(true);
                         RelationsTable.setTableHeader(RelationsTableHeader);
@@ -498,8 +488,8 @@ public class Visualization extends Frame {
         ObjectsList.addMouseListener(ObjectListener);
 
 
-        JDialog dialog = new JDialog(frame, "Dominance Cones", true);
-        dialog.setSize(750,450);
+        JDialog dialog = new JDialog(frame, "Selected Dominance Cones: " + (index + 1), true);
+        dialog.setSize(800,500);
         dialog.setLocationRelativeTo(frame);
         dialog.add(DominanceConesPanel, BorderLayout.WEST);
         dialog.add(DomimanceConeObjectsPanel, BorderLayout.CENTER);
@@ -545,21 +535,21 @@ public class Visualization extends Frame {
         CharacteristicLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         CharacteristicList.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        CharacteristicListModel.addElement(String.format("%-40s", "Support") + ruleSet.getRuleCharacteristics(index).getSupport());
-        CharacteristicListModel.addElement(String.format("%-40s", "Strength") + ruleSet.getRuleCharacteristics(index).getStrength());
-        CharacteristicListModel.addElement(String.format("%-40s", "Confidence") + ruleSet.getRuleCharacteristics(index).getConfidence());
-        CharacteristicListModel.addElement(String.format("%-40s", "Coverage factor") + ruleSet.getRuleCharacteristics(index).getCoverageFactor());
-        CharacteristicListModel.addElement(String.format("%-40s", "Coverage") + ruleSet.getRuleCharacteristics(index).getCoverage());
-        CharacteristicListModel.addElement(String.format("%-40s", "Negative coverage") + ruleSet.getRuleCharacteristics(index).getNegativeCoverage());
-        CharacteristicListModel.addElement(String.format("%-40s", "Epsilon measure") + ruleSet.getRuleCharacteristics(index).getEpsilon());
-        CharacteristicListModel.addElement(String.format("%-40s", "Epsilon prime measure") + ruleSet.getRuleCharacteristics(index).getEpsilonPrime());
-        CharacteristicListModel.addElement(String.format("%-40s", "F-confirmation measure") + ruleSet.getRuleCharacteristics(index).getFConfirmation());
-        CharacteristicListModel.addElement(String.format("%-40s", "A-confirmation measure") + ruleSet.getRuleCharacteristics(index).getAConfirmation());
-        CharacteristicListModel.addElement(String.format("%-40s", "Z-confirmation measure") + ruleSet.getRuleCharacteristics(index).getZConfirmation());
-        CharacteristicListModel.addElement(String.format("%-40s", "L-confirmation measure") + ruleSet.getRuleCharacteristics(index).getLConfirmation());
-        CharacteristicListModel.addElement(String.format("%-40s", "c1-confirmation measure") + ruleSet.getRuleCharacteristics(index).getC1Confirmation());
-        CharacteristicListModel.addElement(String.format("%-40s", "S-confirmation measure") + ruleSet.getRuleCharacteristics(index).getSConfirmation());
-        CharacteristicListModel.addElement(String.format("%-40s", "Length") + ruleSet.getRule(index).getConditions().length);
+        CharacteristicListModel.addElement("Support " + ruleSet.getRuleCharacteristics(index).getSupport());
+        CharacteristicListModel.addElement("Strength " + ruleSet.getRuleCharacteristics(index).getStrength());
+        CharacteristicListModel.addElement("Confidence " + ruleSet.getRuleCharacteristics(index).getConfidence());
+        CharacteristicListModel.addElement("Coverage factor " + ruleSet.getRuleCharacteristics(index).getCoverageFactor());
+        CharacteristicListModel.addElement("Coverage " + ruleSet.getRuleCharacteristics(index).getCoverage());
+        CharacteristicListModel.addElement("Negative coverage " + ruleSet.getRuleCharacteristics(index).getNegativeCoverage());
+        CharacteristicListModel.addElement("Epsilon measure " + ruleSet.getRuleCharacteristics(index).getEpsilon());
+        CharacteristicListModel.addElement("Epsilon prime measure " + ruleSet.getRuleCharacteristics(index).getEpsilonPrime());
+        CharacteristicListModel.addElement("F-confirmation measure " + ruleSet.getRuleCharacteristics(index).getFConfirmation());
+        CharacteristicListModel.addElement("A-confirmation measure " + ruleSet.getRuleCharacteristics(index).getAConfirmation());
+        CharacteristicListModel.addElement("Z-confirmation measure " + ruleSet.getRuleCharacteristics(index).getZConfirmation());
+        CharacteristicListModel.addElement("L-confirmation measure " + ruleSet.getRuleCharacteristics(index).getLConfirmation());
+        CharacteristicListModel.addElement("c1-confirmation measure " + ruleSet.getRuleCharacteristics(index).getC1Confirmation());
+        CharacteristicListModel.addElement("S-confirmation measure " + ruleSet.getRuleCharacteristics(index).getSConfirmation());
+        CharacteristicListModel.addElement("Length " + ruleSet.getRule(index).getConditions().length);
 
         CharacteristicPanel.add(CharacteristicLabel);
         CharacteristicPanel.add(CharacteristicList);
@@ -581,12 +571,12 @@ public class Visualization extends Frame {
                 if (mouseEvent.getClickCount() == 1){
                     int ObjIndex = theList.locationToIndex(mouseEvent.getPoint());
                     if (ObjIndex >= 0) {
-                        System.out.println("Clicked on: " + ObjIndex);
-                        System.out.println(ObjectsModel.get(ObjIndex));
+                        ObjectNameLabel.setVisible(true);
+                        ScrollAttributesPane.setVisible(true);
                         AttributesModel.clear();
                         for (int i = 0; i < informationTable.getNumberOfAttributes(); ++i){
                             AttributesModel.addElement(informationTable.getAttribute(i).getName() + " "
-                                    + informationTable.getField(Integer.valueOf(ObjectsModel.get(ObjIndex).split(" ")[1]) - 1, i));
+                                    + informationTable.getField(Integer.parseInt(ObjectsModel.get(ObjIndex).split(" ")[1]) - 1, i));
                         }
                     }
                 }
@@ -596,11 +586,13 @@ public class Visualization extends Frame {
 
         ObjectNameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         ScrollAttributesPane.setAlignmentX(Component.LEFT_ALIGNMENT);
+        ObjectNameLabel.setVisible(false);
+        ScrollAttributesPane.setVisible(false);
         ObjectPanel.add(ObjectNameLabel);
         ObjectPanel.add(ScrollAttributesPane);
 
-        JDialog dialog = new JDialog(frame, "Dominance Cones", true);
-        dialog.setSize(750,450);
+        JDialog dialog = new JDialog(frame, "Selected Rule: " + (index + 1), true);
+        dialog.setSize(800,500);
         dialog.setLocationRelativeTo(frame);
         dialog.add(CharacteristicPanel, BorderLayout.WEST);
         dialog.add(CoveredObjectsPanel, BorderLayout.CENTER);
@@ -619,7 +611,7 @@ public class Visualization extends Frame {
         }
         else{
             if (informationTable.getAttribute(index).getValueType() instanceof IntegerField) {
-                if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("gain")){
+                if (informationTable.getField(firstObject, index).getTypeDescriptor().contains("gain")){
                     relation = Integer.parseInt(informationTable.getField(firstObject, index).toString())
                             > Integer.parseInt(informationTable.getField(secondObject, index).toString()) ? ">" : "<";
                 }
@@ -628,7 +620,7 @@ public class Visualization extends Frame {
                             < Integer.parseInt(informationTable.getField(secondObject, index).toString()) ? ">" : "<";
                 }
             } else if (informationTable.getAttribute(index).getValueType() instanceof RealField) {
-                if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("gain")){
+                if (informationTable.getField(firstObject, index).getTypeDescriptor().contains("gain")){
                     relation = Float.parseFloat(informationTable.getField(firstObject, index).toString())
                             > Float.parseFloat(informationTable.getField(secondObject, index).toString()) ? ">" : "<";
                 }
@@ -639,9 +631,7 @@ public class Visualization extends Frame {
             }
             else if (informationTable.getAttribute(index).getValueType() instanceof EnumerationField){
 
-                System.out.println(informationTable.getField(firstObject, index).getTypeDescriptor().toString());
-
-                String AttributeEnumsString = informationTable.getAttribute(index).serialize().toString();
+                String AttributeEnumsString = informationTable.getAttribute(index).serialize();
 
                 String[] AttributeEnums = AttributeEnumsString.substring(AttributeEnumsString.indexOf("(") + 1, AttributeEnumsString.indexOf(")")).split(",");
                 int first_index = 0, second_index = 0;
@@ -652,10 +642,10 @@ public class Visualization extends Frame {
                     if (AttributeEnums[i].equals(informationTable.getField(secondObject, index).toString())) {
                         second_index = i;
                     }
-                    if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("gain")){
+                    if (informationTable.getField(firstObject, index).getTypeDescriptor().contains("gain")){
                         relation = first_index > second_index ? "<" : ">";
                     }
-                    else if (informationTable.getField(firstObject, index).getTypeDescriptor().toString().contains("cost")){
+                    else if (informationTable.getField(firstObject, index).getTypeDescriptor().contains("cost")){
                         relation = first_index > second_index ? ">" : "<";
                     }
 
