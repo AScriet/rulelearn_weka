@@ -12,6 +12,7 @@ import org.rulelearn.rules.*;
 import org.data.ArffInstance2Table;
 import org.rulelearn.types.*;
 import weka.classifiers.AbstractClassifier;
+import weka.classifiers.bayes.NaiveBayes;
 import weka.core.*;
 import org.rulelearn.approximations.VCDominanceBasedRoughSetCalculator;
 import weka.gui.Visualization;
@@ -21,7 +22,6 @@ import java.util.*;
 public class DRSA extends AbstractClassifier implements
         TechnicalInformationHandler{
 
-    public String unionsString = "";
     public RuleType typeOfRules;
     private Double consistencyThreshold;
     protected Boolean advancedVisualization;
@@ -34,18 +34,19 @@ public class DRSA extends AbstractClassifier implements
     private transient ApproximatedSetProvider unionAtLeastProvider;
     private transient ApproximatedSetProvider unionAtMostProvider;
     protected transient InformationTableWithDecisionDistributions informationTableWithDecisionDistributions;
-
+    public Instances inst;
     public String globalInfo(){
 
-        return "test info about DRSA"
+        return "DRSA module to enable the use of functionality of the ruleLearn library\n\n"
                 + getTechnicalInformation().toString();
     }
 
     @Override
     public TechnicalInformation getTechnicalInformation() {
         TechnicalInformation info;
-        info = new TechnicalInformation(TechnicalInformation.Type.ARTICLE);
-        info.setValue(TechnicalInformation.Field.AUTHOR, "Andrii Stepaniuk");
+        info = new TechnicalInformation(TechnicalInformation.Type.INPROCEEDINGS);
+        info.setValue(TechnicalInformation.Field.AUTHOR, "Jerzy Błaszczyński, Marcin Szeląg");
+        info.setValue(TechnicalInformation.Field.TITLE, "Rough set approach to classification of incomplete data");
         return info;
     }
 
@@ -91,9 +92,9 @@ public class DRSA extends AbstractClassifier implements
 
         String conThresh = Utils.getOption("ST", options);
         if (!conThresh.isEmpty()) {
-            setConsistencyThreshold(Double.parseDouble(conThresh));
-        } else {
-            setConsistencyThreshold(0.0);
+            double cons = Double.parseDouble(conThresh);
+            setConsistencyThreshold(Math.max(cons, 0.0));
+
         }
         advancedVisualization = Utils.getFlag("advanced-visualization", options);
 
@@ -116,6 +117,9 @@ public class DRSA extends AbstractClassifier implements
                 break;
             case "HYBRID_SCORING_RULE_CLASSIFIER":
                 typeOfClassifier = TypeOfClassifier.HYBRID_SCORING_RULE_CLASSIFIER;
+                break;
+            case "DEFAULT_CLASSIFIER":
+                typeOfClassifier = TypeOfClassifier.DEFAULT_CLASSIFIER;
                 break;
         }
         String defaultClassificationResult1 = Utils.getOption("DefClassificationResult", options);
@@ -155,6 +159,9 @@ public class DRSA extends AbstractClassifier implements
 
     @Override
     public void buildClassifier(Instances data) throws Exception {
+
+        inst = data;
+
         InformationTable informationTable;
         ArffInstance2Table ArffConverter = new ArffInstance2Table();
         rlAttributes = ArffConverter.getAttributes(data);
@@ -231,18 +238,9 @@ public class DRSA extends AbstractClassifier implements
 
             resultRulesSet.setLearningInformationTableHash(unions.getInformationTable().getHash());
         }
-
-        for (int i = 0; i < unionAtLeastProvider.getCount(); i++) {
-            unionsString +=(unionAtLeastProvider.getApproximatedSet(i) + " "
-                    + unionAtLeastProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
-                    + unionAtLeastProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
+        if (typeOfClassifier != TypeOfClassifier.DEFAULT_CLASSIFIER) {
+            prepareClassifier();
         }
-        for (int i = 0; i < unionAtMostProvider.getCount(); i++) {
-            unionsString +=(unionAtMostProvider.getApproximatedSet(i) + " "
-                    + unionAtMostProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
-                    + unionAtMostProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
-        }
-        prepareClassifier();
 
     }
 
@@ -301,19 +299,41 @@ public class DRSA extends AbstractClassifier implements
     }
     @Override
     public double classifyInstance(Instance instance) {
-        double covers = 0.0;
-
+        double covers = -1;
         ArffInstance2Table arffInstance2Table = new ArffInstance2Table();
         InformationTable informationTable = arffInstance2Table.getTable(rlAttributes, instance);
-
-        IntArrayList indicesOfCoveringRules = new IntArrayList();
-        ClassificationResult classificationResults = classifier.classify(0, informationTable, indicesOfCoveringRules);
-
-        for (int i = 0; i < decisions.length; ++i) {
-            if (decisions[i].equals(classificationResults.getSuggestedDecision())) {
-                covers = i;
+        if (typeOfClassifier == TypeOfClassifier.DEFAULT_CLASSIFIER) {
+            for (int i = 0; i < resultRulesSet.size(); ++i) {
+                if (resultRulesSet.getRule(i).covers(0, informationTable)) {
+                    for (int j = 0; j < decisions.length; ++j) {
+                        if (resultRulesSet.getRule(i).getDecision().toString().contains(decisions[j].serialize().replace("8:", ""))) {
+                            covers = j;
+                        }
+                    }
+                    break;
+                }
+            }
+            if (covers == -1) {
+                NaiveBayes naiveBayes = new NaiveBayes();
+                try {
+                    naiveBayes.buildClassifier(inst);
+                    covers = naiveBayes.classifyInstance(instance);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
         }
+        else{
+            IntArrayList indicesOfCoveringRules = new IntArrayList();
+            ClassificationResult classificationResults = classifier.classify(0, informationTable, indicesOfCoveringRules);
+
+            for (int i = 0; i < decisions.length; ++i) {
+                if (decisions[i].equals(classificationResults.getSuggestedDecision())) {
+                    covers = i;
+                }
+            }
+        }
+
         return covers;
     }
 
@@ -322,9 +342,23 @@ public class DRSA extends AbstractClassifier implements
         if (advancedVisualization) {
             Visualization.run(unionAtLeastProvider, unionAtMostProvider, informationTableWithDecisionDistributions, resultRulesSet);
             return "\nDRSA rules: \n ===========\n" +
-                    resultRulesSet.serialize("\n");
+                    resultRulesSet.serialize("\n") +
+                    "\nNum of Rules: " + resultRulesSet.size() + "\n";
         }
         else {
+            String unionsString = "";
+
+            for (int i = 0; i < unionAtLeastProvider.getCount(); i++) {
+                unionsString +=(unionAtLeastProvider.getApproximatedSet(i) + " "
+                        + unionAtLeastProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
+                        + unionAtLeastProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
+            }
+            for (int i = 0; i < unionAtMostProvider.getCount(); i++) {
+                unionsString +=(unionAtMostProvider.getApproximatedSet(i) + " "
+                        + unionAtMostProvider.getApproximatedSet(i).getAccuracyOfApproximation() + " "
+                        + unionAtMostProvider.getApproximatedSet(i).getQualityOfApproximation() + "\n");
+            }
+
             return "\nCLASS UNIONS: \n ===========\n" +
                     unionsString +
                     "\nDRSA rules: \n ===========\n" +
@@ -350,6 +384,16 @@ public class DRSA extends AbstractClassifier implements
         this.typeOfClassifier = TypeOfClassifier.SIMPLE_RULE_CLASSIFIER_AVG;
         this.defaulClassificationResult = DefaulClassificationResult.MAJORITY_DECISION_CLASS;
         this.advancedVisualization = false;
+    }
+
+    public Capabilities _getCapabilities() {
+        Capabilities capabilities = super.getCapabilities();
+        capabilities.disableAll();
+
+        capabilities.enable(Capabilities.Capability.NUMERIC_ATTRIBUTES);
+        capabilities.enable(Capabilities.Capability.MISSING_VALUES);
+
+        return capabilities;
     }
 
     public DRSA(){
